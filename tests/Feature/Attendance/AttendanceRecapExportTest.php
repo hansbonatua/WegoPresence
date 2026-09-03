@@ -155,10 +155,10 @@ class AttendanceRecapExportTest extends TestCase
     public function test_excel_export_applies_status_filter(): void
     {
         $user = $this->createUser('user');
-        $this->createAttendance($user, ['attendance_status' => 'on_time']);
+        $this->createAttendance($user, ['attendance_status' => 'present']);
         $this->createAttendance($user, [
             'attendance_date' => '2026-08-06',
-            'check_in_time' => '08:30:00',
+            'check_in_time' => '09:00:00',
             'attendance_status' => 'late',
         ]);
         $admin = $this->createUser('super_admin');
@@ -169,7 +169,7 @@ class AttendanceRecapExportTest extends TestCase
 
         $rows = $this->parseXlsx($response);
         $this->assertCount(2, $rows);
-        $this->assertSame('Late', $rows[1][8]);
+        $this->assertSame('Terlambat', $rows[1][8]);
     }
 
     public function test_excel_export_applies_search_filter(): void
@@ -301,16 +301,16 @@ class AttendanceRecapExportTest extends TestCase
     {
         $user = $this->createUser('user');
         $this->createAttendance($user, [
-            'check_in_time' => '07:58:00',
-            'attendance_status' => 'on_time',
+            'check_in_time' => '08:30:00',
+            'attendance_status' => 'present',
         ]);
         $admin = $this->createUser('super_admin');
 
         $response = $this->actingAs($admin)->get(route('attendance.recap.export.excel'));
 
         $rows = $this->parseXlsx($response);
-        $this->assertSame('Late', $rows[1][8]);
-        $this->assertSame(3, (int) $rows[1][9]);
+        $this->assertSame('Hadir', $rows[1][8]);
+        $this->assertSame(0, (int) $rows[1][9]);
     }
 
     public function test_excel_includes_late_minutes_column(): void
@@ -325,23 +325,23 @@ class AttendanceRecapExportTest extends TestCase
         $response = $this->actingAs($admin)->get(route('attendance.recap.export.excel'));
 
         $rows = $this->parseXlsx($response);
-        $this->assertSame('Late', $rows[1][8]);
-        $this->assertSame(65, (int) $rows[1][9]);
+        $this->assertSame('Terlambat', $rows[1][8]);
+        $this->assertSame(14, (int) $rows[1][9]);
     }
 
-    public function test_excel_shows_zero_late_minutes_for_on_time(): void
+    public function test_excel_shows_zero_late_minutes_for_present(): void
     {
         $user = $this->createUser('user');
         $this->createAttendance($user, [
-            'check_in_time' => '07:55:00',
-            'attendance_status' => 'on_time',
+            'check_in_time' => '08:00:00',
+            'attendance_status' => 'present',
         ]);
         $admin = $this->createUser('super_admin');
 
         $response = $this->actingAs($admin)->get(route('attendance.recap.export.excel'));
 
         $rows = $this->parseXlsx($response);
-        $this->assertSame('On Time', $rows[1][8]);
+        $this->assertSame('Hadir', $rows[1][8]);
         $this->assertSame(0, (int) $rows[1][9]);
     }
 
@@ -357,7 +357,7 @@ class AttendanceRecapExportTest extends TestCase
         $response = $this->actingAs($admin)->get(route('attendance.recap.export.excel'));
 
         $rows = $this->parseXlsx($response);
-        $this->assertSame('On Time', $rows[1][8]);
+        $this->assertSame('Hadir', $rows[1][8]);
         $this->assertNull($rows[1][9]);
     }
 
@@ -393,7 +393,7 @@ class AttendanceRecapExportTest extends TestCase
             'user_id' => $user->id,
             'attendance_date' => '2026-08-05',
             'check_in_time' => '07:55:00',
-            'attendance_status' => 'on_time',
+            'attendance_status' => 'present',
         ], ...$overrides]);
     }
 

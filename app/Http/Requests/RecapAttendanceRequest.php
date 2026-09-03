@@ -30,7 +30,7 @@ class RecapAttendanceRequest extends FormRequest
             'nip' => ['nullable', 'string', 'max:20'],
             'name' => ['nullable', 'string', 'max:100'],
             'office_id' => ['nullable', 'integer', 'exists:offices,id'],
-            'attendance_status' => ['nullable', Rule::in(['on_time', 'late'])],
+            'attendance_status' => ['nullable', Rule::in(['present', 'late'])],
         ];
     }
 }

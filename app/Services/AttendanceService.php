@@ -18,14 +18,16 @@ use Illuminate\Support\Facades\Storage;
 class AttendanceService
 {
     /**
-     * Default office start time used when the office has no schedule.
+     * Start attendance time (Asia/Jakarta). Check-in exactly at or before
+     * this time is PRESENT (Hadir), after it is LATE (Terlambat).
      */
-    private const DEFAULT_START_TIME = '08:00';
+    private const START_ATTENDANCE_TIME = '08:46:00';
 
     /**
-     * Recap on-time cutoff: check-in at or before 07:55:59 is On Time.
+     * Recap on-time cutoff. Aligned with the attendance start time: no
+     * late minutes when checking in at or before 08:46:00.
      */
-    private const RECAP_CUTOFF_TIME = '07:55:00';
+    private const RECAP_CUTOFF_TIME = '08:46:00';
 
     /**
      * Maximum acceptable age of the browser position timestamp in
@@ -69,8 +71,10 @@ class AttendanceService
             throw new AttendanceException('Your current location is outside your assigned office city.');
         }
 
-        $now = now();
-        $status = $now->gt($this->officeStartTime($user)) ? 'late' : 'on_time';
+        $now = Carbon::now('Asia/Jakarta');
+        $status = $now->gt(Carbon::parse(self::START_ATTENDANCE_TIME, 'Asia/Jakarta'))
+            ? 'late'
+            : 'present';
 
         $photoPath = null;
 
@@ -347,20 +351,11 @@ class AttendanceService
     }
 
     /**
-     * Resolve the office start time for a user, falling back to a
-     * sensible default when the office has no schedule configured.
-     */
-    private function officeStartTime(User $user): Carbon
-    {
-        return Carbon::parse($user->office?->start_time ?? self::DEFAULT_START_TIME);
-    }
-
-    /**
      * Compute the recap status for a given attendance record.
      *
-     * Uses a fixed 07:55:00 cutoff regardless of office schedule.
-     * Returns 'on_time' if check-in time is <= 07:55:59, 'late' if
-     * > 07:55:59, or null when check_in_time is not set.
+     * Uses a fixed 08:46:00 cutoff regardless of office schedule.
+     * Returns 'present' if check-in time is <= 08:46:00, 'late' if
+     * > 08:46:00, or null when check_in_time is not set.
      */
     public static function computeRecapStatus(?CarbonInterface $checkInTime): ?string
     {
@@ -368,24 +363,24 @@ class AttendanceService
             return null;
         }
 
-        // Compare using H:i (minute precision): 07:55 and below = On Time,
-        // 07:56 and above = Late.
-        return $checkInTime->format('H:i') <= '07:55'
-            ? 'on_time'
+        // Compare at second precision: 08:46 and below = Present (Hadir),
+        // anything after 08:46:00 = Late (Terlambat).
+        return $checkInTime->format('H:i:s') <= self::RECAP_CUTOFF_TIME
+            ? 'present'
             : 'late';
     }
 
     /**
      * Compute late minutes for the Recap view.
      *
-     * Late minutes = max(0, floor((check_in_time - 07:55:00) in total
+     * Late minutes = max(0, floor((check_in_time - 08:46:00) in total
      * seconds / 60)). Returns null when check_in_time is not set.
      *
      * Boundary examples:
-     *   07:55:00 → 0 min (on_time)
-     *   07:55:59 → 0 min (on_time, diff = 59 s → floor(59/60) = 0)
-     *   07:56:00 → 1 min (late, diff = 60 s → floor(60/60) = 1)
-     *   08:00:00 → 5 min (late, diff = 300 s → floor(300/60) = 5)
+     *   08:46:00 → 0 min (present)
+     *   08:46:59 → 0 min (late, diff = 59 s → floor(59/60) = 0)
+     *   08:47:00 → 1 min (late, diff = 60 s → floor(60/60) = 1)
+     *   09:00:00 → 14 min (late, diff = 840 s → floor(840/60) = 14)
      */
     public static function computeRecapLateMinutes(?CarbonInterface $checkInTime): ?int
     {

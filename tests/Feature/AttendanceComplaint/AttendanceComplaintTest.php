@@ -599,7 +599,7 @@ class AttendanceComplaintTest extends TestCase
             'user_id' => $user->id,
             'attendance_date' => now()->subDays($this->attendanceCounter)->format('Y-m-d'),
             'check_in_time' => '07:50:00',
-            'attendance_status' => 'on_time',
+            'attendance_status' => 'present',
         ], ...$overrides]);
     }
 

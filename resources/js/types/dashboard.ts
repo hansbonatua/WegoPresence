@@ -18,7 +18,7 @@ export type DashboardCharts = {
 
 export type DashboardActivityType = 'attendance' | 'leave' | 'permission' | 'complaint';
 
-export type DashboardActivityStatus = 'pending' | 'approved' | 'rejected' | 'on_time' | 'late';
+export type DashboardActivityStatus = 'pending' | 'approved' | 'rejected' | 'present' | 'late';
 
 export type DashboardActivity = {
     id: number;
@@ -33,7 +33,7 @@ export type DashboardActivities = DashboardActivity[];
 
 export type DashboardVariants = 'admin' | 'user';
 
-export type AttendanceStatus = 'on_time' | 'late' | 'absent' | null;
+export type AttendanceStatus = 'present' | 'late' | 'absent' | null;
 
 export type TodayAttendance = {
     check_in_time: string | null;

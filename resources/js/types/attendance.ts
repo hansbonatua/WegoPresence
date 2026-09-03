@@ -72,5 +72,5 @@ export type AttendanceRecapFilters = {
     end_date: string;
     search: string;
     office_id: string;
-    attendance_status: 'on_time' | 'late' | '';
+    attendance_status: 'present' | 'late' | '';
 };

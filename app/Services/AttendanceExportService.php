@@ -118,7 +118,7 @@ class AttendanceExportService
                     'attendance_date' => $attendance->attendance_date->format('Y-m-d'),
                     'check_in_time' => $attendance->check_in_time?->format('H:i') ?? '-',
                     'check_out_time' => $attendance->check_out_time?->format('H:i') ?? '-',
-                    'status' => $recapStatus === 'late' ? 'Late' : 'On Time',
+                    'status' => $recapStatus === 'late' ? 'Terlambat' : 'Hadir',
                     'late_minutes' => $lateMinutes,
                     'latitude' => $attendance->latitude ?? '',
                     'longitude' => $attendance->longitude ?? '',

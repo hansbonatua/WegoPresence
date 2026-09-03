@@ -20,7 +20,7 @@ class AttendanceRecapTest extends TestCase
         $officeB = $this->createOffice('BDO001', 'Bandung Office');
         $userA = $this->createUser('user', ['office_id' => $officeA->id]);
         $userB = $this->createUser('user', ['office_id' => $officeB->id]);
-        $this->createAttendance($userA, ['attendance_status' => 'on_time']);
+        $this->createAttendance($userA, ['attendance_status' => 'present']);
         $this->createAttendance($userB, ['attendance_status' => 'late']);
         $admin = $this->createUser('super_admin');
 
@@ -173,10 +173,10 @@ class AttendanceRecapTest extends TestCase
     public function test_recap_is_filtered_by_attendance_status(): void
     {
         $user = $this->createUser('user');
-        $this->createAttendance($user, ['attendance_status' => 'on_time']);
+        $this->createAttendance($user, ['attendance_status' => 'present']);
         $this->createAttendance($user, [
             'attendance_date' => '2026-08-06',
-            'check_in_time' => '08:30:00',
+            'check_in_time' => '09:00:00',
             'attendance_status' => 'late',
         ]);
         $admin = $this->createUser('super_admin');
@@ -281,75 +281,75 @@ class AttendanceRecapTest extends TestCase
                 ->etc()));
     }
 
-    public function test_check_in_at_07_50_shows_on_time_with_zero_late_minutes(): void
+    public function test_check_in_at_08_30_shows_present_with_zero_late_minutes(): void
     {
         $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '07:50:00', 'attendance_status' => 'on_time']);
+        $this->createAttendance($user, ['check_in_time' => '08:30:00', 'attendance_status' => 'present']);
         $admin = $this->createUser('super_admin');
 
         $response = $this->actingAs($admin)->get(route('attendance.recap'));
 
         $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'on_time')
+            ->where('recaps.data.0.attendance_status', 'present')
             ->where('recaps.data.0.late_minutes', 0));
     }
 
-    public function test_check_in_at_07_55_shows_on_time_with_zero_late_minutes(): void
+    public function test_check_in_at_08_40_shows_present_with_zero_late_minutes(): void
     {
         $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '07:55:00', 'attendance_status' => 'on_time']);
+        $this->createAttendance($user, ['check_in_time' => '08:40:00', 'attendance_status' => 'present']);
         $admin = $this->createUser('super_admin');
 
         $response = $this->actingAs($admin)->get(route('attendance.recap'));
 
         $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'on_time')
+            ->where('recaps.data.0.attendance_status', 'present')
             ->where('recaps.data.0.late_minutes', 0));
     }
 
-    public function test_check_in_at_07_55_01_shows_on_time_with_zero_late_minutes(): void
+    public function test_check_in_at_08_45_shows_present_with_zero_late_minutes(): void
     {
         $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '07:55:01', 'attendance_status' => 'on_time']);
+        $this->createAttendance($user, ['check_in_time' => '08:45:00', 'attendance_status' => 'present']);
         $admin = $this->createUser('super_admin');
 
         $response = $this->actingAs($admin)->get(route('attendance.recap'));
 
         $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'on_time')
+            ->where('recaps.data.0.attendance_status', 'present')
             ->where('recaps.data.0.late_minutes', 0));
     }
 
-    public function test_check_in_at_07_55_30_shows_on_time_with_zero_late_minutes(): void
+    public function test_check_in_at_08_46_shows_present_with_zero_late_minutes(): void
     {
         $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '07:55:30', 'attendance_status' => 'on_time']);
+        $this->createAttendance($user, ['check_in_time' => '08:46:00', 'attendance_status' => 'present']);
         $admin = $this->createUser('super_admin');
 
         $response = $this->actingAs($admin)->get(route('attendance.recap'));
 
         $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'on_time')
+            ->where('recaps.data.0.attendance_status', 'present')
             ->where('recaps.data.0.late_minutes', 0));
     }
 
-    public function test_check_in_at_07_55_59_shows_on_time_with_zero_late_minutes(): void
+    public function test_check_in_at_08_46_59_shows_late_with_zero_late_minutes(): void
     {
         $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '07:55:59', 'attendance_status' => 'late']);
+        $this->createAttendance($user, ['check_in_time' => '08:46:59', 'attendance_status' => 'late']);
         $admin = $this->createUser('super_admin');
 
         $response = $this->actingAs($admin)->get(route('attendance.recap'));
 
         $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'on_time')
+            ->where('recaps.data.0.attendance_status', 'late')
             ->where('recaps.data.0.late_minutes', 0));
     }
 
-    public function test_check_in_at_07_56_shows_late_with_1_minute(): void
+    public function test_check_in_at_08_47_shows_late_with_1_minute(): void
     {
         $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '07:56:00', 'attendance_status' => 'late']);
+        $this->createAttendance($user, ['check_in_time' => '08:47:00', 'attendance_status' => 'late']);
         $admin = $this->createUser('super_admin');
 
         $response = $this->actingAs($admin)->get(route('attendance.recap'));
@@ -359,111 +359,7 @@ class AttendanceRecapTest extends TestCase
             ->where('recaps.data.0.late_minutes', 1));
     }
 
-    public function test_check_in_at_07_56_01_shows_late_with_1_minute(): void
-    {
-        $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '07:56:01', 'attendance_status' => 'late']);
-        $admin = $this->createUser('super_admin');
-
-        $response = $this->actingAs($admin)->get(route('attendance.recap'));
-
-        $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'late')
-            ->where('recaps.data.0.late_minutes', 1));
-    }
-
-    public function test_check_in_at_07_56_30_shows_late_with_1_minute(): void
-    {
-        $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '07:56:30', 'attendance_status' => 'late']);
-        $admin = $this->createUser('super_admin');
-
-        $response = $this->actingAs($admin)->get(route('attendance.recap'));
-
-        $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'late')
-            ->where('recaps.data.0.late_minutes', 1));
-    }
-
-    public function test_check_in_at_07_56_59_shows_late_with_1_minute(): void
-    {
-        $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '07:56:59', 'attendance_status' => 'late']);
-        $admin = $this->createUser('super_admin');
-
-        $response = $this->actingAs($admin)->get(route('attendance.recap'));
-
-        $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'late')
-            ->where('recaps.data.0.late_minutes', 1));
-    }
-
-    public function test_check_in_at_07_57_00_shows_late_with_2_minutes(): void
-    {
-        $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '07:57:00', 'attendance_status' => 'late']);
-        $admin = $this->createUser('super_admin');
-
-        $response = $this->actingAs($admin)->get(route('attendance.recap'));
-
-        $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'late')
-            ->where('recaps.data.0.late_minutes', 2));
-    }
-
-    public function test_check_in_at_07_58_00_shows_late_with_3_minutes(): void
-    {
-        $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '07:58:00', 'attendance_status' => 'late']);
-        $admin = $this->createUser('super_admin');
-
-        $response = $this->actingAs($admin)->get(route('attendance.recap'));
-
-        $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'late')
-            ->where('recaps.data.0.late_minutes', 3));
-    }
-
-    public function test_check_in_at_07_58_59_shows_late_with_3_minutes(): void
-    {
-        $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '07:58:59', 'attendance_status' => 'late']);
-        $admin = $this->createUser('super_admin');
-
-        $response = $this->actingAs($admin)->get(route('attendance.recap'));
-
-        $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'late')
-            ->where('recaps.data.0.late_minutes', 3));
-    }
-
-    public function test_check_in_at_08_00_shows_late_with_5_minutes(): void
-    {
-        $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '08:00:00', 'attendance_status' => 'late']);
-        $admin = $this->createUser('super_admin');
-
-        $response = $this->actingAs($admin)->get(route('attendance.recap'));
-
-        $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'late')
-            ->where('recaps.data.0.late_minutes', 5));
-    }
-
-    public function test_check_in_at_08_15_shows_late_with_20_minutes(): void
-    {
-        $user = $this->createUser('user');
-        $this->createAttendance($user, ['check_in_time' => '08:15:00', 'attendance_status' => 'late']);
-        $admin = $this->createUser('super_admin');
-
-        $response = $this->actingAs($admin)->get(route('attendance.recap'));
-
-        $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'late')
-            ->where('recaps.data.0.late_minutes', 20));
-    }
-
-    public function test_check_in_at_09_00_shows_late_with_65_minutes(): void
+    public function test_check_in_at_09_00_shows_late_with_14_minutes(): void
     {
         $user = $this->createUser('user');
         $this->createAttendance($user, ['check_in_time' => '09:00:00', 'attendance_status' => 'late']);
@@ -473,7 +369,20 @@ class AttendanceRecapTest extends TestCase
 
         $response->assertInertia(fn ($page) => $page
             ->where('recaps.data.0.attendance_status', 'late')
-            ->where('recaps.data.0.late_minutes', 65));
+            ->where('recaps.data.0.late_minutes', 14));
+    }
+
+    public function test_check_in_at_10_30_shows_late_with_104_minutes(): void
+    {
+        $user = $this->createUser('user');
+        $this->createAttendance($user, ['check_in_time' => '10:30:00', 'attendance_status' => 'late']);
+        $admin = $this->createUser('super_admin');
+
+        $response = $this->actingAs($admin)->get(route('attendance.recap'));
+
+        $response->assertInertia(fn ($page) => $page
+            ->where('recaps.data.0.attendance_status', 'late')
+            ->where('recaps.data.0.late_minutes', 104));
     }
 
     public function test_attendance_without_check_in_time_has_null_late_minutes(): void
@@ -495,17 +404,19 @@ class AttendanceRecapTest extends TestCase
     public function test_recap_uses_recap_cutoff_not_office_start_time(): void
     {
         $user = $this->createUser('user');
+        // Before the 08:46 recap cutoff even though it is after the office
+        // 08:00 start time.
         $this->createAttendance($user, [
-            'check_in_time' => '07:58:00',
-            'attendance_status' => 'on_time',
+            'check_in_time' => '08:30:00',
+            'attendance_status' => 'present',
         ]);
         $admin = $this->createUser('super_admin');
 
         $response = $this->actingAs($admin)->get(route('attendance.recap'));
 
         $response->assertInertia(fn ($page) => $page
-            ->where('recaps.data.0.attendance_status', 'late')
-            ->where('recaps.data.0.late_minutes', 3));
+            ->where('recaps.data.0.attendance_status', 'present')
+            ->where('recaps.data.0.late_minutes', 0));
     }
 
     private function createOffice(string $code, string $name): Office
@@ -540,7 +451,7 @@ class AttendanceRecapTest extends TestCase
             'user_id' => $user->id,
             'attendance_date' => '2026-08-05',
             'check_in_time' => '07:55:00',
-            'attendance_status' => 'on_time',
+            'attendance_status' => 'present',
         ], ...$overrides]);
     }
 }

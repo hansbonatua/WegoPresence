@@ -47,12 +47,12 @@ type RecapProps = {
     offices: OfficeResource[];
 };
 
-type RecapStatus = 'on_time' | 'late';
+type RecapStatus = 'present' | 'late';
 
 const statusStyles: Record<RecapStatus, string> = {
-    on_time:
+    present:
         'border-transparent bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-    late: 'border-transparent bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+    late: 'border-transparent bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
 };
 
 function StatusBadge({
@@ -64,9 +64,9 @@ function StatusBadge({
 }) {
     return (
         <Badge variant="outline" className={statusStyles[status]}>
-            {status === 'on_time'
-                ? 'On time'
-                : `Late \u00B7 ${lateMinutes ?? 0} min`}
+            {status === 'present'
+                ? 'Hadir'
+                : `Terlambat · ${lateMinutes ?? 0} min`}
         </Badge>
     );
 }
@@ -326,10 +326,12 @@ export default function AttendanceRecap({
                                     <SelectItem value="">
                                         All statuses
                                     </SelectItem>
-                                    <SelectItem value="on_time">
-                                        On time
+                                    <SelectItem value="present">
+                                        Hadir
                                     </SelectItem>
-                                    <SelectItem value="late">Late</SelectItem>
+                                    <SelectItem value="late">
+                                        Terlambat
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
 
@@ -433,7 +435,7 @@ export default function AttendanceRecap({
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     {record.attendance_status ===
-                                                        'on_time' ||
+                                                        'present' ||
                                                     record.attendance_status ===
                                                         'late' ? (
                                                         <StatusBadge

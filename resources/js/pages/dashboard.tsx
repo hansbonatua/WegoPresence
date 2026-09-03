@@ -26,8 +26,8 @@ const statusStyles: Record<string, string> = {
         'border-transparent bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
     rejected:
         'border-transparent bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-    late: 'border-transparent bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-    on_time:
+    late: 'border-transparent bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+    present:
         'border-transparent bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
 };
 
@@ -35,8 +35,8 @@ const statusLabels: Record<string, string> = {
     pending: 'Pending',
     approved: 'Approved',
     rejected: 'Rejected',
-    late: 'Late',
-    on_time: 'On time',
+    late: 'Terlambat',
+    present: 'Hadir',
 };
 
 function statusLabel(status: string | null): string {

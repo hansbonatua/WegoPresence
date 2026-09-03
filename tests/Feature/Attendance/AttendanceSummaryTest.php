@@ -848,7 +848,7 @@ class AttendanceSummaryTest extends TestCase
             'user_id' => $user->id,
             'attendance_date' => $date->toDateString(),
             'check_in_time' => '08:00:00',
-            'attendance_status' => 'on_time',
+            'attendance_status' => 'present',
             ...$overrides,
         ]);
     }

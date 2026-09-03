@@ -27,24 +27,29 @@ type Props = {
 };
 
 const statusStyles: Record<string, string> = {
-    on_time:
+    present:
         'border-transparent bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-    late: 'border-transparent bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+    late: 'border-transparent bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
     absent:
         'border-transparent bg-muted text-muted-foreground',
 };
 
 const POSITION_MAX_AGE_MS = 30_000;
 
+const START_ATTENDANCE_TIME = '08:46 WIB';
+
+const statusLabels: Record<string, string> = {
+    present: 'Hadir',
+    late: 'Terlambat',
+    absent: 'Absen',
+};
+
 function statusLabel(status: string | null): string {
     if (!status) {
         return '—';
     }
 
-    return status
-        .split('_')
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
+    return statusLabels[status] ?? status;
 }
 
 export default function AttendanceIndex({ today, history, flash }: Props) {
@@ -204,6 +209,9 @@ export default function AttendanceIndex({ today, history, flash }: Props) {
                                     Not checked in yet
                                 </p>
                             )}
+                            <p className="mt-3 text-xs text-muted-foreground">
+                                Jam masuk: {START_ATTENDANCE_TIME}
+                            </p>
                         </CardContent>
                     </Card>
 

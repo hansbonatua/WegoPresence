@@ -51,7 +51,7 @@ class AttendanceGpsTest extends TestCase
         $attendance = Attendance::query()->where('user_id', $user->id)->first();
 
         $this->assertNotNull($attendance);
-        $this->assertSame('on_time', $attendance->attendance_status);
+        $this->assertSame('present', $attendance->attendance_status);
         $this->assertSame('2026-08-07', $attendance->attendance_date->format('Y-m-d'));
         $this->assertSame('-6.1666667', (string) $attendance->latitude);
         $this->assertSame('106.8000000', (string) $attendance->longitude);
@@ -77,7 +77,7 @@ class AttendanceGpsTest extends TestCase
 
             $this->assertDatabaseHas('attendances', [
                 'user_id' => $user->id,
-                'attendance_status' => 'on_time',
+                'attendance_status' => 'present',
             ]);
         }
     }
@@ -102,7 +102,7 @@ class AttendanceGpsTest extends TestCase
 
             $this->assertDatabaseHas('attendances', [
                 'user_id' => $user->id,
-                'attendance_status' => 'on_time',
+                'attendance_status' => 'present',
             ]);
         }
     }
@@ -175,7 +175,7 @@ class AttendanceGpsTest extends TestCase
             'user_id' => $user->id,
             'attendance_date' => '2026-08-07',
             'check_in_time' => '07:00:00',
-            'attendance_status' => 'on_time',
+            'attendance_status' => 'present',
         ]);
 
         $this->fakeNominatim('Jakarta Pusat');
@@ -226,7 +226,7 @@ class AttendanceGpsTest extends TestCase
             'user_id' => $user->id,
             'attendance_date' => '2026-08-07',
             'check_in_time' => '07:50:00',
-            'attendance_status' => 'on_time',
+            'attendance_status' => 'present',
         ]);
 
         $response = $this->actingAs($user)
@@ -403,7 +403,7 @@ class AttendanceGpsTest extends TestCase
             'user_id' => $user->id,
             'attendance_date' => $saturday,
             'check_in_time' => '09:00:00',
-            'attendance_status' => 'on_time',
+            'attendance_status' => 'present',
         ]);
 
         $this->travelTo(Carbon::parse($saturday)->setTime(17, 0));
@@ -426,7 +426,7 @@ class AttendanceGpsTest extends TestCase
             'user_id' => $user->id,
             'attendance_date' => $sunday,
             'check_in_time' => '09:00:00',
-            'attendance_status' => 'on_time',
+            'attendance_status' => 'present',
         ]);
 
         $this->travelTo(Carbon::parse($sunday)->setTime(17, 0));

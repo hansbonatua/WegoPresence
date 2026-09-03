@@ -57,7 +57,7 @@ class AttendanceTimezoneTest extends TestCase
         $this->assertSame('late', $attendance->attendance_status);
     }
 
-    public function test_check_in_at_07_46_wib_is_stored_as_wib_wall_clock_and_marked_on_time(): void
+    public function test_check_in_at_07_46_wib_is_stored_as_wib_wall_clock_and_marked_present(): void
     {
         $user = $this->createUser($this->createOffice('DKI Jakarta'));
         $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
@@ -70,7 +70,77 @@ class AttendanceTimezoneTest extends TestCase
 
         $this->assertSame('2026-08-07', $attendance->attendance_date->format('Y-m-d'));
         $this->assertSame('07:46:00', $attendance->check_in_time->format('H:i:s'));
-        $this->assertSame('on_time', $attendance->attendance_status);
+        $this->assertSame('present', $attendance->attendance_status);
+    }
+
+    public function test_check_in_at_08_45_wib_is_marked_present(): void
+    {
+        $user = $this->createUser($this->createOffice('DKI Jakarta'));
+        $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
+
+        Carbon::setTestNow('2026-08-07 08:45:00');
+
+        $this->postCheckIn()->assertSessionHas('success');
+
+        $attendance = Attendance::query()->where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('present', $attendance->attendance_status);
+    }
+
+    public function test_check_in_at_08_46_wib_is_marked_present(): void
+    {
+        $user = $this->createUser($this->createOffice('DKI Jakarta'));
+        $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
+
+        Carbon::setTestNow('2026-08-07 08:46:00');
+
+        $this->postCheckIn()->assertSessionHas('success');
+
+        $attendance = Attendance::query()->where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('present', $attendance->attendance_status);
+    }
+
+    public function test_check_in_at_08_47_wib_is_marked_late(): void
+    {
+        $user = $this->createUser($this->createOffice('DKI Jakarta'));
+        $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
+
+        Carbon::setTestNow('2026-08-07 08:47:00');
+
+        $this->postCheckIn()->assertSessionHas('success');
+
+        $attendance = Attendance::query()->where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('late', $attendance->attendance_status);
+    }
+
+    public function test_check_in_at_09_30_wib_is_marked_late(): void
+    {
+        $user = $this->createUser($this->createOffice('DKI Jakarta'));
+        $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
+
+        Carbon::setTestNow('2026-08-07 09:30:00');
+
+        $this->postCheckIn()->assertSessionHas('success');
+
+        $attendance = Attendance::query()->where('user_id', $user->id)->firstOrFail();
+        $this->assertSame('late', $attendance->attendance_status);
+    }
+
+    public function test_attendance_status_enum_supports_present_and_late(): void
+    {
+        $user = $this->createUser($this->createOffice('DKI Jakarta'));
+
+        foreach (['present', 'late', 'absent'] as $index => $status) {
+            Attendance::query()->create([
+                'user_id' => $user->id,
+                'attendance_date' => '2026-08-'.str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
+                'attendance_status' => $status,
+            ]);
+        }
+
+        $this->assertSame(
+            ['absent', 'late', 'present'],
+            Attendance::query()->pluck('attendance_status')->sort()->values()->all(),
+        );
     }
 
     public function test_check_out_at_17_10_wib_is_stored_as_wib_wall_clock(): void
