@@ -486,7 +486,7 @@ class UserActivationTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('dashboard')
                 ->where('cards.4.id', 'pending_registrations')
-                ->where('cards.4.value', 2));
+                ->where('cards.4.value', 3));
     }
 
     public function test_dashboard_counts_all_pending_registrations_for_super_admins(): void

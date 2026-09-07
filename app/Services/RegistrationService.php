@@ -154,7 +154,6 @@ class RegistrationService
 
         return User::query()
             ->where('status', $status)
-            ->when($reviewer->isAdmin(), fn ($query) => $query->where('office_id', $reviewer->office_id))
             ->count();
     }
 
