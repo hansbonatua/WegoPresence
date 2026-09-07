@@ -24,7 +24,8 @@ class UserController extends Controller
 
     /**
      * Display a paginated, searchable and sortable listing of users,
-     * grouped by status tab. Admins only see users from their own office.
+     * grouped by status tab. Admins and super admins see every user
+     * regardless of office.
      */
     public function index(Request $request): Response
     {
@@ -45,7 +46,6 @@ class UserController extends Controller
         $users = User::query()
             ->with(['role:id,name', 'office:id,office_code,office_name', 'approvedBy:id,name'])
             ->where('status', $status)
-            ->when($user->isAdmin(), fn ($query) => $query->where('office_id', $user->office_id))
             ->when($request->filled('search'), function ($query) use ($request) {
                 $search = $request->string('search')->trim();
 
@@ -68,9 +68,9 @@ class UserController extends Controller
                 'status' => $status,
             ],
             'counts' => [
-                'active' => $this->registrationService->countByStatus($user, 'active'),
-                'pending' => $this->registrationService->countByStatus($user, 'pending'),
-                'rejected' => $this->registrationService->countByStatus($user, 'rejected'),
+                'active' => User::query()->where('status', 'active')->count(),
+                'pending' => User::query()->where('status', 'pending')->count(),
+                'rejected' => User::query()->where('status', 'rejected')->count(),
             ],
             'can' => [
                 'review' => $user->isSuperAdmin() || $user->isAdmin(),

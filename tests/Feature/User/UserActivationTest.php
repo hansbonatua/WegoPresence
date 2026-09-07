@@ -360,7 +360,7 @@ class UserActivationTest extends TestCase
                 ->where('users.data.0.id', $pending->id));
     }
 
-    public function test_admin_pending_tab_excludes_other_offices(): void
+    public function test_admin_pending_tab_lists_all_offices(): void
     {
         $adminOffice = $this->createOffice();
         $otherOffice = $this->createOffice();
@@ -373,8 +373,11 @@ class UserActivationTest extends TestCase
         $response->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('users/index')
-                ->has('users.data', 1)
-                ->where('users.data.0.id', $own->id));
+                ->has('users.data', 2)
+                ->where('users.data', fn ($data) => collect($data)
+                    ->pluck('id')
+                    ->diff([$own->id, $other->id])
+                    ->isEmpty()));
 
         $this->assertDatabaseHas('users', ['id' => $other->id, 'status' => 'pending']);
     }
@@ -409,6 +412,26 @@ class UserActivationTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->component('users/index')
             ->where('counts.active', 2)
+            ->where('counts.pending', 2)
+            ->where('counts.rejected', 1));
+    }
+
+    public function test_admin_status_counts_cover_all_offices(): void
+    {
+        $adminOffice = $this->createOffice();
+        $otherOffice = $this->createOffice();
+        $admin = $this->createManager('admin', $adminOffice);
+        $this->createPending($adminOffice, nip: '555555');
+        $this->createPending($otherOffice, nip: '666666');
+        User::factory()->create(['office_id' => $adminOffice->id, 'status' => 'active']);
+        User::factory()->create(['office_id' => $otherOffice->id, 'status' => 'active']);
+        User::factory()->create(['office_id' => $otherOffice->id, 'status' => 'rejected']);
+
+        $response = $this->actingAs($admin)->get(route('users.index'));
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('users/index')
+            ->where('counts.active', 3)
             ->where('counts.pending', 2)
             ->where('counts.rejected', 1));
     }
