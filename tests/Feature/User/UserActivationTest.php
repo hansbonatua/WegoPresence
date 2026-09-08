@@ -64,7 +64,7 @@ class UserActivationTest extends TestCase
         $this->assertSame('888888', $pending->nip);
     }
 
-    public function test_admin_can_not_activate_a_pending_registration_from_another_office(): void
+    public function test_admin_can_activate_a_pending_registration_from_another_office(): void
     {
         $adminOffice = $this->createOffice();
         $otherOffice = $this->createOffice();
@@ -73,8 +73,24 @@ class UserActivationTest extends TestCase
 
         $response = $this->actingAs($admin)->post(route('users.activate', $pending));
 
-        $response->assertForbidden();
-        $this->assertSame('pending', $pending->refresh()->status);
+        $response->assertRedirect();
+        $this->assertSame('active', $pending->refresh()->status);
+    }
+
+    public function test_admin_can_reject_a_pending_registration_from_another_office(): void
+    {
+        $adminOffice = $this->createOffice();
+        $otherOffice = $this->createOffice();
+        $admin = $this->createManager('admin', $adminOffice);
+        $pending = $this->createPending($otherOffice, nip: '555555');
+
+        $response = $this->actingAs($admin)->post(route('users.reject', $pending), [
+            'rejected_reason' => 'Missing required documents',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertSame('rejected', $pending->refresh()->status);
+        $this->assertSame('Missing required documents', $pending->rejected_reason);
     }
 
     public function test_regular_users_can_not_activate_or_reject_registrations(): void
@@ -555,14 +571,20 @@ class UserActivationTest extends TestCase
                 ->where('can.reject', true));
     }
 
-    public function test_admin_can_not_view_a_registration_from_another_office(): void
+    public function test_admin_can_view_a_registration_from_another_office(): void
     {
         $adminOffice = $this->createOffice();
         $otherOffice = $this->createOffice();
         $admin = $this->createManager('admin', $adminOffice);
         $pending = $this->createPending($otherOffice, nip: '555555');
 
-        $this->actingAs($admin)->get(route('users.show', $pending))->assertForbidden();
+        $this->actingAs($admin)->get(route('users.show', $pending))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('users/show')
+                ->where('user.id', $pending->id)
+                ->where('can.activate', true)
+                ->where('can.reject', true));
     }
 
     public function test_super_admin_can_view_a_pending_registration_from_any_office(): void

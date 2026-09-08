@@ -16,7 +16,7 @@ class UserPolicy
 
     /**
      * Determine whether the user can view the model.
-     * Admins can only view users from their own office.
+     * Super admins and admins can view every user from every office.
      */
     public function view(User $user, User $model): bool
     {
@@ -24,7 +24,7 @@ class UserPolicy
             return true;
         }
 
-        return $user->isAdmin() && $model->office_id === $user->office_id;
+        return $user->isAdmin();
     }
 
     /**
@@ -61,7 +61,7 @@ class UserPolicy
 
     /**
      * Determine whether the user can activate a pending registration.
-     * Admins can only review registrations from their own office.
+     * Super admins and admins can review registrations from every office.
      */
     public function activate(User $user, User $model): bool
     {
@@ -69,14 +69,12 @@ class UserPolicy
             return true;
         }
 
-        return $user->isAdmin()
-            && ! $model->isSuperAdmin()
-            && $model->office_id === $user->office_id;
+        return $user->isAdmin() && ! $model->isSuperAdmin();
     }
 
     /**
      * Determine whether the user can reject a pending registration.
-     * Admins can only review registrations from their own office.
+     * Super admins and admins can review registrations from every office.
      */
     public function reject(User $user, User $model): bool
     {
