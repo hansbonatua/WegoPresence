@@ -57,7 +57,7 @@ class AttendanceSummaryExportTest extends TestCase
         ]))->assertForbidden();
     }
 
-    public function test_super_admins_are_forbidden(): void
+    public function test_super_admins_can_export_the_summary(): void
     {
         [$start] = $this->mondayBasedWeek();
         $super = $this->createManager('super_admin');
@@ -65,7 +65,28 @@ class AttendanceSummaryExportTest extends TestCase
         $this->actingAs($super)->get(route('attendance.summary.export', [
             'start_date' => $start->toDateString(),
             'end_date' => $start->toDateString(),
-        ]))->assertForbidden();
+        ]))->assertOk();
+    }
+
+    public function test_super_admin_exports_the_header_as_all_offices(): void
+    {
+        [$start] = $this->mondayBasedWeek();
+        $officeA = $this->createOffice();
+        $officeB = $this->createOffice();
+        $super = $this->createManager('super_admin', ['office_id' => $officeA->id]);
+        $userA = $this->createUser('user', ['office_id' => $officeA->id, 'nip' => '010001']);
+        $userB = $this->createUser('user', ['office_id' => $officeB->id, 'nip' => '010002']);
+
+        $response = $this->actingAs($super)->get(route('attendance.summary.export', [
+            'start_date' => $start->toDateString(),
+            'end_date' => $start->toDateString(),
+        ]));
+
+        $sheet = $this->loadSheet($response);
+
+        $this->assertStringContainsString('All Offices', $sheet->getCell('A4')->getValue());
+        $this->assertSame($userA->nip, (string) $sheet->getCell('B7')->getValue());
+        $this->assertSame($userB->nip, (string) $sheet->getCell('B8')->getValue());
     }
 
     public function test_guests_are_redirected_to_login(): void
@@ -216,7 +237,7 @@ class AttendanceSummaryExportTest extends TestCase
             ->assertSessionHasErrors(['start_date', 'end_date']);
     }
 
-    public function test_admin_only_exports_users_from_their_own_office(): void
+    public function test_admin_exports_users_from_all_offices(): void
     {
         [$start] = $this->mondayBasedWeek();
         $adminOffice = $this->createOffice();
@@ -234,8 +255,9 @@ class AttendanceSummaryExportTest extends TestCase
 
         $this->assertSame('1', (string) $sheet->getCell('A7')->getValue());
         $this->assertSame($own->nip, (string) $sheet->getCell('B7')->getValue());
-        $this->assertNull($sheet->getCell('A8')->getValue());
-        $this->assertStringContainsString($adminOffice->office_name, $sheet->getCell('A4')->getValue());
+        $this->assertSame('2', (string) $sheet->getCell('A8')->getValue());
+        $this->assertSame($other->nip, (string) $sheet->getCell('B8')->getValue());
+        $this->assertStringContainsString('All Offices', $sheet->getCell('A4')->getValue());
     }
 
     public function test_office_id_cannot_bypass_the_admin_scope(): void
@@ -380,6 +402,45 @@ class AttendanceSummaryExportTest extends TestCase
         $this->assertSame('I', $this->loadSheet($response)->getCell('E7')->getValue());
     }
 
+    public function test_export_includes_the_permission_reason_column(): void
+    {
+        [$start] = $this->mondayBasedWeek();
+        $admin = $this->createManager('admin');
+        $user = $this->createUser('user', ['office_id' => $admin->office_id, 'nip' => '010001']);
+        $this->createPermission($user, $start, 'approved', 'Medical checkup');
+
+        $response = $this->actingAs($admin)->get(route('attendance.summary.export', [
+            'start_date' => $start->toDateString(),
+            'end_date' => $start->toDateString(),
+        ]));
+
+        $sheet = $this->loadSheet($response);
+
+        $this->assertSame('Office', $sheet->getCell('F6')->getValue());
+        $this->assertSame('Permission Reason', $sheet->getCell('G6')->getValue());
+        $this->assertSame('I', $sheet->getCell('E7')->getValue());
+        $this->assertSame($admin->office->office_name, $sheet->getCell('F7')->getValue());
+        $this->assertSame('Medical checkup', $sheet->getCell('G7')->getValue());
+    }
+
+    public function test_export_shows_dash_when_there_is_no_permission_reason(): void
+    {
+        [$start] = $this->mondayBasedWeek();
+        $admin = $this->createManager('admin');
+        $user = $this->createUser('user', ['office_id' => $admin->office_id]);
+
+        $response = $this->actingAs($admin)->get(route('attendance.summary.export', [
+            'start_date' => $start->toDateString(),
+            'end_date' => $start->toDateString(),
+        ]));
+
+        $sheet = $this->loadSheet($response);
+
+        $this->assertSame('Office', $sheet->getCell('F6')->getValue());
+        $this->assertSame('Permission Reason', $sheet->getCell('G6')->getValue());
+        $this->assertSame('-', $sheet->getCell('G7')->getValue());
+    }
+
     public function test_approved_dinas_is_exported_as_d(): void
     {
         [$start] = $this->mondayBasedWeek();
@@ -466,7 +527,7 @@ class AttendanceSummaryExportTest extends TestCase
         self::$officeSequence++;
 
         return Office::query()->create([
-            'office_code' => 'JKT'.str_pad((string) self::$officeSequence, 3, '0', STR_PAD_LEFT),
+            'office_code' => 'OFC'.str_pad((string) self::$officeSequence, 3, '0', STR_PAD_LEFT),
             'office_name' => 'Office '.self::$officeSequence,
             'city' => 'Jakarta',
             'address' => 'Jl. Test '.self::$officeSequence,
@@ -505,13 +566,12 @@ class AttendanceSummaryExportTest extends TestCase
         ]);
     }
 
-    private function createPermission(User $user, CarbonImmutable $date, string $status): Permission
+    private function createPermission(User $user, CarbonImmutable $date, string $status, ?string $reason = null): Permission
     {
         return Permission::query()->create([
             'user_id' => $user->id,
             'start_date' => $date->toDateString(),
-            'end_date' => $date->toDateString(),
-            'reason' => 'Smoke permission',
+            'reason' => $reason ?? 'Smoke permission',
             'status' => $status,
         ]);
     }

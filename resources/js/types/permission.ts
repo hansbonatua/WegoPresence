@@ -7,7 +7,6 @@ export type PermissionResource = {
     user_id: number;
     type: PermissionType;
     start_date: string;
-    end_date: string;
     reason: string;
     status: PermissionStatus;
     approval_notes: string | null;

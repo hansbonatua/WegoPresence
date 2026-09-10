@@ -22,7 +22,7 @@ class RegistrationTest extends TestCase
         self::$officeSequence++;
 
         return Office::query()->create([
-            'office_code' => 'JKT'.str_pad((string) self::$officeSequence, 3, '0', STR_PAD_LEFT),
+            'office_code' => 'OFC'.str_pad((string) self::$officeSequence, 3, '0', STR_PAD_LEFT),
             'office_name' => 'Office '.self::$officeSequence,
             'city' => 'Jakarta',
             'address' => 'Jl. Test '.self::$officeSequence,
@@ -285,8 +285,12 @@ class RegistrationTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('auth/register')
-                ->has('offices', 1)
-                ->where('offices.0.id', $active->id));
+                ->where('offices', fn ($offices) => collect($offices)
+                    ->pluck('id')
+                    ->contains($active->id))
+                ->where('offices', fn ($offices) => collect($offices)
+                    ->pluck('id')
+                    ->doesntContain($inactive->id)));
     }
 
     public function test_registration_requires_confirmed_password_with_minimum_length(): void

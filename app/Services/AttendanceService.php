@@ -231,12 +231,8 @@ class AttendanceService
         $query = Attendance::query()
             ->with(['user:id,office_id,nip,name,position', 'user.office:id,office_code,office_name,city']);
 
-        if ($user->isSuperAdmin()) {
-            // Super admins can see every attendance record.
-        } elseif ($user->isAdmin()) {
-            $query->whereHas('user', function ($query) use ($user) {
-                $query->where('office_id', $user->office_id);
-            });
+        if ($user->isSuperAdmin() || $user->isAdmin()) {
+            // Managers can see every attendance record across all offices.
         } else {
             $query->where('user_id', $user->id);
         }

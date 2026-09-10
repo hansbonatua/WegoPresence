@@ -101,7 +101,7 @@ export default function CreateBusinessTrip() {
                                             event.target.value,
                                         )
                                     }
-                                    placeholder="e.g. Bandung Branch Office"
+                                    placeholder="e.g. Client office, branch address"
                                     aria-invalid={!!form.errors.destination}
                                 />
                                 <InputError

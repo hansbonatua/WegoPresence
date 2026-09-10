@@ -16,7 +16,7 @@ class AttendanceRecapTest extends TestCase
 
     public function test_super_admin_can_view_recap_with_all_offices(): void
     {
-        $officeA = $this->createOffice('JKT001', 'Jakarta Office');
+        $officeA = $this->createOffice('JKT010', 'Jakarta Office');
         $officeB = $this->createOffice('BDO001', 'Bandung Office');
         $userA = $this->createUser('user', ['office_id' => $officeA->id]);
         $userB = $this->createUser('user', ['office_id' => $officeB->id]);
@@ -31,12 +31,12 @@ class AttendanceRecapTest extends TestCase
             ->component('attendance/recap')
             ->where('recaps.total', 2)
             ->has('recaps.data', 2)
-            ->has('offices', 2));
+            ->has('offices', Office::query()->count()));
     }
 
-    public function test_admin_can_view_recap_for_their_office_only(): void
+    public function test_admin_can_view_recap_for_all_offices(): void
     {
-        $officeA = $this->createOffice('JKT001', 'Jakarta Office');
+        $officeA = $this->createOffice('JKT010', 'Jakarta Office');
         $officeB = $this->createOffice('BDO001', 'Bandung Office');
         $staff = $this->createUser('user', ['office_id' => $officeA->id]);
         $other = $this->createUser('user', ['office_id' => $officeB->id]);
@@ -48,15 +48,13 @@ class AttendanceRecapTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->where('recaps.total', 1)
-            ->has('recaps.data', 1, fn ($item) => $item
-                ->where('user.nip', $staff->nip)
-                ->etc()));
+            ->where('recaps.total', 2)
+            ->has('recaps.data', 2));
     }
 
-    public function test_admin_cannot_view_other_office_attendance(): void
+    public function test_admin_can_view_other_office_attendance(): void
     {
-        $officeA = $this->createOffice('JKT001', 'Jakarta Office');
+        $officeA = $this->createOffice('JKT010', 'Jakarta Office');
         $officeB = $this->createOffice('BDO001', 'Bandung Office');
         $other = $this->createUser('user', ['office_id' => $officeB->id]);
         $this->createAttendance($other);
@@ -66,7 +64,27 @@ class AttendanceRecapTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->where('recaps.total', 0));
+            ->where('recaps.total', 1));
+    }
+
+    public function test_admin_sees_other_admins_attendance(): void
+    {
+        $officeA = $this->createOffice('JKT010', 'Jakarta Office');
+        $officeB = $this->createOffice('BDO001', 'Bandung Office');
+        $admin = $this->createUser('admin', ['office_id' => $officeA->id]);
+        $otherAdmin = $this->createUser('admin', ['office_id' => $officeB->id, 'nip' => '9999999999']);
+        $this->createAttendance($admin);
+        $this->createAttendance($otherAdmin);
+
+        $response = $this->actingAs($admin)->get(route('attendance.recap'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('recaps.total', 2)
+            ->where('recaps.data', fn ($data) => collect($data)
+                ->pluck('user.nip')
+                ->diff([$admin->nip, $otherAdmin->nip])
+                ->isEmpty()));
     }
 
     public function test_regular_user_cannot_access_recap(): void
@@ -152,7 +170,7 @@ class AttendanceRecapTest extends TestCase
 
     public function test_recap_is_filtered_by_office(): void
     {
-        $officeA = $this->createOffice('JKT001', 'Jakarta Office');
+        $officeA = $this->createOffice('JKT010', 'Jakarta Office');
         $officeB = $this->createOffice('BDO001', 'Bandung Office');
         $userA = $this->createUser('user', ['office_id' => $officeA->id]);
         $userB = $this->createUser('user', ['office_id' => $officeB->id]);

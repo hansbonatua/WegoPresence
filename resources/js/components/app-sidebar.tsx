@@ -39,7 +39,6 @@ export function AppSidebar() {
         useSidebar();
     const isCollapsed = !isMobile && state === 'collapsed';
     const isManager = auth.role === 'admin' || auth.role === 'super_admin';
-    const isAdmin = auth.role === 'admin';
 
     const mainNavItems: NavItem[] = [
         {
@@ -61,7 +60,7 @@ export function AppSidebar() {
                   },
               ]
             : []),
-        ...(isAdmin
+        ...(isManager
             ? [
                   {
                       title: 'Attendance Summary',
@@ -71,17 +70,17 @@ export function AppSidebar() {
               ]
             : []),
         {
-            title: 'Permissions',
+            title: 'Permissions (IZIN KELUAR)',
             href: permissionsIndex(),
             icon: ClipboardList,
         },
         {
-            title: 'Leave',
+            title: 'Leave (CUTI)',
             href: leavesIndex(),
             icon: CalendarOff,
         },
         {
-            title: 'Sick Leave',
+            title: 'Sick Leave (SAKIT)',
             href: sickLeavesIndex(),
             icon: Thermometer,
         },

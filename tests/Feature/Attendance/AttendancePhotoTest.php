@@ -272,7 +272,7 @@ class AttendancePhotoTest extends TestCase
         $this->assertEmpty(Storage::disk('public')->files('attendance/check-in'));
     }
 
-    private function createOffice(string $city, string $startTime = '08:00:00', string $officeCode = 'JKT001'): Office
+    private function createOffice(string $city, string $startTime = '08:00:00', string $officeCode = 'JKT010'): Office
     {
         return Office::query()->create([
             'office_code' => $officeCode,

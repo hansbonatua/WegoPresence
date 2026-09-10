@@ -250,7 +250,7 @@ class AttendanceComplaintTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_admin_can_view_only_own_office_complaints(): void
+    public function test_admin_can_view_complaints_from_all_offices(): void
     {
         $officeA = $this->factoryOffice();
         $officeB = Office::query()->create([
@@ -272,11 +272,14 @@ class AttendanceComplaintTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->where('complaints.total', 1)
-            ->where('complaints.data.0.complaint_reason', 'Office A complaint'));
+            ->where('complaints.total', 2)
+            ->where('complaints.data', fn ($data) => collect($data)
+                ->pluck('complaint_reason')
+                ->diff(['Office A complaint', 'Office B complaint'])
+                ->isEmpty()));
     }
 
-    public function test_admin_cannot_approve_complaint_from_another_office(): void
+    public function test_admin_can_approve_complaint_from_another_office(): void
     {
         $officeA = $this->factoryOffice();
         $officeB = Office::query()->create([
@@ -294,8 +297,8 @@ class AttendanceComplaintTest extends TestCase
         $response = $this->actingAs($admin)
             ->post(route('attendance-complaints.approve', $complaint));
 
-        $response->assertForbidden();
-        $this->assertSame('pending', $complaint->fresh()->status);
+        $response->assertRedirect();
+        $this->assertSame('approved', $complaint->fresh()->status);
     }
 
     public function test_admin_can_approve_complaint_with_notes(): void

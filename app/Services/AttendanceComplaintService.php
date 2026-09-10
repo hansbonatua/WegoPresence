@@ -102,9 +102,8 @@ class AttendanceComplaintService
     }
 
     /**
-     * Paginate complaints. Employees only see their own complaints,
-     * admins see complaints from their own office, and super admins
-     * see everything.
+     * Paginate complaints. Employees only see their own complaints;
+     * admins and super admins see everything across all offices.
      *
      * @param  array{search?: string|null, status?: string|null}  $filters
      */
@@ -119,11 +118,7 @@ class AttendanceComplaintService
             ])
             ->latest();
 
-        if ($user->isAdmin()) {
-            $query->whereHas('user', function ($query) use ($user) {
-                $query->where('office_id', $user->office_id);
-            });
-        } elseif (! $user->isSuperAdmin()) {
+        if (! $user->isSuperAdmin() && ! $user->isAdmin()) {
             $query->where('user_id', $user->id);
         }
 

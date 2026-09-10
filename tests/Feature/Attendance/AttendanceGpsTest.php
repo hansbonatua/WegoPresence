@@ -449,7 +449,7 @@ class AttendanceGpsTest extends TestCase
         self::$officeSequence++;
 
         return Office::query()->create([
-            'office_code' => $officeCode ?? 'JKT'.str_pad((string) self::$officeSequence, 3, '0', STR_PAD_LEFT),
+            'office_code' => $officeCode ?? 'GPS'.str_pad((string) self::$officeSequence, 3, '0', STR_PAD_LEFT),
             'office_name' => 'Jakarta Head Office',
             'city' => $city,
             'address' => 'Wisma 67, Jl. Tanah Abang II No. 67, Jakarta Pusat 10160',

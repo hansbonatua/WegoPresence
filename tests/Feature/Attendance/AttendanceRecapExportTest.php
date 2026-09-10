@@ -34,7 +34,7 @@ class AttendanceRecapExportTest extends TestCase
 
     public function test_admin_can_export_excel_for_their_office(): void
     {
-        $office = $this->createOffice('JKT001', 'Jakarta Office');
+        $office = $this->createOffice('JKT010', 'Jakarta Office');
         $staff = $this->createUser('user', ['office_id' => $office->id, 'nip' => '1234567890']);
         $this->createAttendance($staff);
         $admin = $this->createUser('admin', ['office_id' => $office->id]);
@@ -81,7 +81,7 @@ class AttendanceRecapExportTest extends TestCase
 
     public function test_admin_can_export_pdf(): void
     {
-        $office = $this->createOffice('JKT001', 'Jakarta Office');
+        $office = $this->createOffice('JKT010', 'Jakarta Office');
         $staff = $this->createUser('user', ['office_id' => $office->id]);
         $this->createAttendance($staff);
         $admin = $this->createUser('admin', ['office_id' => $office->id]);
@@ -92,9 +92,9 @@ class AttendanceRecapExportTest extends TestCase
         $this->assertSame('application/pdf', $response->headers->get('content-type'));
     }
 
-    public function test_admin_export_excludes_other_office_attendance(): void
+    public function test_admin_export_includes_other_office_attendance(): void
     {
-        $officeA = $this->createOffice('JKT001', 'Jakarta Office');
+        $officeA = $this->createOffice('JKT010', 'Jakarta Office');
         $officeB = $this->createOffice('BDO001', 'Bandung Office');
         $staff = $this->createUser('user', ['office_id' => $officeA->id, 'nip' => '1111111111']);
         $other = $this->createUser('user', ['office_id' => $officeB->id, 'nip' => '9999999999']);
@@ -109,12 +109,12 @@ class AttendanceRecapExportTest extends TestCase
         $rows = $this->parseXlsx($response);
         $nipps = array_column($rows, 1);
         $this->assertContains('1111111111', $nipps);
-        $this->assertNotContains('9999999999', $nipps);
+        $this->assertContains('9999999999', $nipps);
     }
 
-    public function test_admin_cannot_filter_in_other_office_data(): void
+    public function test_admin_can_filter_in_other_office_data(): void
     {
-        $officeA = $this->createOffice('JKT001', 'Jakarta Office');
+        $officeA = $this->createOffice('JKT010', 'Jakarta Office');
         $officeB = $this->createOffice('BDO001', 'Bandung Office');
         $staff = $this->createUser('user', ['office_id' => $officeA->id, 'nip' => '1111111111']);
         $other = $this->createUser('user', ['office_id' => $officeB->id, 'nip' => '9999999999']);
@@ -130,7 +130,8 @@ class AttendanceRecapExportTest extends TestCase
 
         $rows = $this->parseXlsx($response);
         $nipps = array_column($rows, 1);
-        $this->assertNotContains('9999999999', $nipps);
+        $this->assertContains('9999999999', $nipps);
+        $this->assertNotContains('1111111111', $nipps);
     }
 
     public function test_excel_export_applies_date_range_filter(): void
@@ -209,7 +210,7 @@ class AttendanceRecapExportTest extends TestCase
 
     public function test_excel_export_applies_office_filter(): void
     {
-        $officeA = $this->createOffice('JKT001', 'Jakarta Office');
+        $officeA = $this->createOffice('JKT010', 'Jakarta Office');
         $officeB = $this->createOffice('BDO001', 'Bandung Office');
         $userA = $this->createUser('user', ['office_id' => $officeA->id, 'nip' => '1111111111']);
         $userB = $this->createUser('user', ['office_id' => $officeB->id, 'nip' => '2222222222']);

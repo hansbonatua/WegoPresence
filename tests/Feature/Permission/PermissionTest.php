@@ -54,7 +54,6 @@ class PermissionTest extends TestCase
         $response = $this->actingAs($user)->post(route('permissions.store'), [
             'type' => 'official',
             'start_date' => today()->format('Y-m-d'),
-            'end_date' => today()->addDay()->format('Y-m-d'),
             'reason' => 'Company meeting outside office',
         ]);
 
@@ -65,7 +64,6 @@ class PermissionTest extends TestCase
         $this->assertSame($user->id, $permission->user_id);
         $this->assertSame('official', $permission->type);
         $this->assertSame(today()->format('Y-m-d'), $permission->start_date->format('Y-m-d'));
-        $this->assertSame(today()->addDay()->format('Y-m-d'), $permission->end_date->format('Y-m-d'));
         $this->assertSame('Company meeting outside office', $permission->reason);
     }
 
@@ -272,7 +270,7 @@ class PermissionTest extends TestCase
         $this->assertSame('rejected', $permission->fresh()->status);
     }
 
-    public function test_invalid_date_range_is_rejected(): void
+    public function test_obsolete_end_date_field_is_ignored(): void
     {
         $user = $this->createUser('user');
 
@@ -281,8 +279,12 @@ class PermissionTest extends TestCase
             'end_date' => today()->subDay()->format('Y-m-d'),
         ]);
 
-        $response->assertSessionHasErrors('end_date');
-        $this->assertDatabaseCount('permissions', 0);
+        $response->assertSessionHasNoErrors();
+        $this->assertSame('pending', Permission::query()->firstOrFail()->status);
+        $this->assertSame(
+            today()->format('Y-m-d'),
+            Permission::query()->firstOrFail()->start_date->format('Y-m-d'),
+        );
     }
 
     public function test_invalid_date_format_is_rejected(): void
@@ -332,7 +334,6 @@ class PermissionTest extends TestCase
         $this->createPermission($owner, [
             'status' => 'approved',
             'start_date' => today()->format('Y-m-d'),
-            'end_date' => today()->format('Y-m-d'),
         ]);
 
         $data = app(DashboardService::class)->getDashboardData($superAdmin);
@@ -376,14 +377,13 @@ class PermissionTest extends TestCase
     }
 
     /**
-     * @return array{type: string, start_date: string, end_date: string, reason: string}
+     * @return array{type: string, start_date: string, reason: string}
      */
     private function validPayload(): array
     {
         return [
             'type' => 'personal',
             'start_date' => today()->format('Y-m-d'),
-            'end_date' => today()->format('Y-m-d'),
             'reason' => 'Family event',
         ];
     }
@@ -404,7 +404,6 @@ class PermissionTest extends TestCase
             'user_id' => $user->id,
             'type' => 'personal',
             'start_date' => today()->format('Y-m-d'),
-            'end_date' => today()->format('Y-m-d'),
             'reason' => 'Family event',
             'status' => 'pending',
         ], ...$overrides]);

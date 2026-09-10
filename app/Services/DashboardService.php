@@ -52,7 +52,8 @@ class DashboardService
     }
 
     /**
-     * Summary statistics displayed as cards, filtered by role.
+     * Summary statistics displayed as cards. Managers (super admins and
+     * admins) see every card aggregated across the whole company.
      *
      * @return array<int, array{id: string, label: string, value: int}>
      */
@@ -64,7 +65,6 @@ class DashboardService
                 'label' => 'Total Employee',
                 'value' => User::query()
                     ->where('status', 'active')
-                    ->when($user->isAdmin(), fn ($query) => $query->where('office_id', $user->office_id))
                     ->count(),
             ],
             [
@@ -95,7 +95,7 @@ class DashboardService
             [
                 'id' => 'permission_today',
                 'label' => 'Permission Today',
-                'value' => $this->countApprovedRangeToday(Permission::class),
+                'value' => $this->countApprovedToday(Permission::class, 'start_date'),
             ],
             [
                 'id' => 'sick_today',
@@ -119,15 +119,7 @@ class DashboardService
             ],
         ];
 
-        if ($user->isSuperAdmin()) {
-            return $cards;
-        }
-
-        $allowedIds = ['total_employees', 'attendance_today', 'late_today', 'pending_approval', 'pending_registrations'];
-
-        return array_values(
-            array_filter($cards, fn (array $card): bool => in_array($card['id'], $allowedIds, true)),
-        );
+        return $cards;
     }
 
     /**
@@ -140,6 +132,18 @@ class DashboardService
             ->where('status', 'approved')
             ->whereDate('start_date', '<=', today())
             ->whereDate('end_date', '>=', today())
+            ->count();
+    }
+
+    /**
+     * Count approved requests that fall on a single date.
+     */
+    private function countApprovedToday(string $model, string $column): int
+    {
+        /** @var class-string $model */
+        return $model::query()
+            ->where('status', 'approved')
+            ->whereDate($column, today())
             ->count();
     }
 
@@ -264,7 +268,7 @@ class DashboardService
                 'id' => $permission->id,
                 'type' => 'permission',
                 'user_name' => $permission->user?->name ?? 'Unknown user',
-                'title' => 'Permission: '.$permission->start_date.' → '.$permission->end_date,
+                'title' => 'Permission: '.$permission->start_date->format('Y-m-d'),
                 'status' => $permission->status,
                 'created_at' => $permission->created_at?->toDateTimeString(),
             ]);

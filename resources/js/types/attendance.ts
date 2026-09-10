@@ -49,6 +49,8 @@ export type AttendanceSummaryUser = {
     nip: string;
     name: string;
     position: string;
+    office: string;
+    permission_reason: string | null;
     dates: Record<string, AttendanceSummaryStatus>;
 };
 

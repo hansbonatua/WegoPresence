@@ -75,12 +75,8 @@ class BusinessTripService
             ->with(['user:id,name,nip', 'approver:id,name'])
             ->latest();
 
-        if ($user->isSuperAdmin()) {
-            // Super admins can see every business trip request.
-        } elseif ($user->isAdmin()) {
-            $query->whereHas('user', function ($query) use ($user) {
-                $query->where('office_id', $user->office_id);
-            });
+        if ($user->isSuperAdmin() || $user->isAdmin()) {
+            // Managers can see every business trip request across all offices.
         } else {
             $query->where('user_id', $user->id);
         }

@@ -207,7 +207,9 @@ class UserController extends Controller
     }
 
     /**
-     * The roles the authenticated user is allowed to assign.
+     * The roles the authenticated user is allowed to assign. Super admins
+     * can assign every role; admins can assign the user and admin roles;
+     * other users cannot assign any role.
      */
     private function assignableRoles(): Collection
     {
@@ -215,6 +217,10 @@ class UserController extends Controller
 
         if ($user->isSuperAdmin()) {
             return Role::orderBy('name')->get(['id', 'name']);
+        }
+
+        if ($user->isAdmin()) {
+            return Role::whereIn('name', ['user', 'admin'])->orderBy('name')->get(['id', 'name']);
         }
 
         return Role::where('name', 'user')->orderBy('name')->get(['id', 'name']);

@@ -59,7 +59,7 @@ class AttendanceSummaryExportService
 
         $this->styleTable($sheet, $startDate, $endDate, $lastDataRow);
 
-        $lastColumn = self::IDENTITY_COLUMNS + count($data['dates']);
+        $lastColumn = self::IDENTITY_COLUMNS + count($data['dates']) + 2;
         $sheet->setAutoFilter(Coordinate::stringFromColumnIndex(1).self::HEADER_ROW.':'.Coordinate::stringFromColumnIndex($lastColumn).$lastDataRow);
 
         $sheet->freezePane(Coordinate::stringFromColumnIndex(self::IDENTITY_COLUMNS + 1).(self::HEADER_ROW + 1));
@@ -74,7 +74,7 @@ class AttendanceSummaryExportService
     }
 
     /**
-     * @param  array<int, array{nip: string, name: string, position: string, dates: array<string, string>}>  $users
+     * @param  array<int, array{nip: string, name: string, position: string, office: string, permission_reason: string|null, dates: array<string, string>}>  $users
      * @param  array<int, string>  $dates
      */
     private function writeTable(Worksheet $sheet, array $users, array $dates): int
@@ -89,6 +89,9 @@ class AttendanceSummaryExportService
             $headerRow[] = CarbonImmutable::parse($date)->format('d M');
         }
 
+        $headerRow[] = 'Office';
+        $headerRow[] = 'Permission Reason';
+
         $sheet->fromArray($headerRow, null, 'A'.self::HEADER_ROW);
 
         foreach ($users as $index => $user) {
@@ -98,6 +101,9 @@ class AttendanceSummaryExportService
             foreach ($dates as $date) {
                 $values[] = $user['dates'][$date] ?? 'A';
             }
+
+            $values[] = $user['office'] ?? '-';
+            $values[] = $user['permission_reason'] ?? '-';
 
             $sheet->fromArray($values, null, 'A'.$row);
         }
@@ -110,7 +116,7 @@ class AttendanceSummaryExportService
         $sheet->setCellValue('A1', self::TITLE);
         $sheet->setCellValue('A2', self::SUBTITLE);
         $sheet->setCellValue('A3', 'Period: '.$startDate->format('d F Y').' - '.$endDate->format('d F Y'));
-        $sheet->setCellValue('A4', 'Office: '.($admin->office?->office_name ?? '-'));
+        $sheet->setCellValue('A4', 'Office: '.($admin->isSuperAdmin() || $admin->isAdmin() ? 'All Offices' : ($admin->office?->office_name ?? '-')));
 
         $sheet->getStyle('A1')->getFont()
             ->setBold(true)
@@ -138,7 +144,8 @@ class AttendanceSummaryExportService
      */
     private function styleTable(Worksheet $sheet, CarbonImmutable $startDate, CarbonImmutable $endDate, int $lastDataRow): void
     {
-        $lastColumn = self::IDENTITY_COLUMNS + $this->dateCount($startDate, $endDate);
+        $lastDateColumn = self::IDENTITY_COLUMNS + $this->dateCount($startDate, $endDate);
+        $lastColumn = $lastDateColumn + 2;
 
         $sheet->getStyle('A'.self::HEADER_ROW.':'.Coordinate::stringFromColumnIndex($lastColumn).$lastDataRow)
             ->getBorders()
@@ -167,11 +174,18 @@ class AttendanceSummaryExportService
         $sheet->getColumnDimension('C')->setWidth(26);
         $sheet->getColumnDimension('D')->setWidth(20);
 
-        for ($column = self::IDENTITY_COLUMNS + 1; $column <= $lastColumn; $column++) {
+        for ($column = self::IDENTITY_COLUMNS + 1; $column <= $lastDateColumn; $column++) {
             $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($column))->setWidth(9);
         }
 
+        $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($lastDateColumn + 1))->setWidth(20);
+        $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($lastDateColumn + 2))->setWidth(30);
+
         $sheet->getStyle('A'.self::HEADER_ROW.':D'.$lastDataRow)
+            ->getAlignment()
+            ->setHorizontal(Alignment::HORIZONTAL_LEFT);
+
+        $sheet->getStyle(Coordinate::stringFromColumnIndex($lastDateColumn + 1).self::HEADER_ROW.':'.Coordinate::stringFromColumnIndex($lastColumn).$lastDataRow)
             ->getAlignment()
             ->setHorizontal(Alignment::HORIZONTAL_LEFT);
     }

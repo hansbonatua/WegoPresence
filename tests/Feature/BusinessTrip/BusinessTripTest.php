@@ -138,7 +138,7 @@ class BusinessTripTest extends TestCase
 
     public function test_admin_can_view_office_requests(): void
     {
-        $office = $this->createOffice('JKT001', 'Jakarta');
+        $office = $this->createOffice('JKT010', 'Jakarta');
         $admin = $this->createUser('admin', ['office_id' => $office->id]);
         $user = $this->createUser('user', ['office_id' => $office->id]);
         $this->createBusinessTrip($user);
@@ -150,9 +150,9 @@ class BusinessTripTest extends TestCase
                 ->where('businessTrips.total', 1));
     }
 
-    public function test_admin_cannot_access_other_office(): void
+    public function test_admin_can_access_other_office(): void
     {
-        $officeA = $this->createOffice('JKT001', 'Jakarta');
+        $officeA = $this->createOffice('JKT010', 'Jakarta');
         $officeB = $this->createOffice('BDO001', 'Bandung');
         $admin = $this->createUser('admin', ['office_id' => $officeA->id]);
         $user = $this->createUser('user', ['office_id' => $officeB->id]);
@@ -162,12 +162,12 @@ class BusinessTripTest extends TestCase
 
         $response->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('businessTrips.total', 0));
+                ->where('businessTrips.total', 1));
     }
 
     public function test_admin_can_approve_own_office_pending(): void
     {
-        $office = $this->createOffice('JKT001', 'Jakarta');
+        $office = $this->createOffice('JKT010', 'Jakarta');
         $admin = $this->createUser('admin', ['office_id' => $office->id]);
         $user = $this->createUser('user', ['office_id' => $office->id]);
         $trip = $this->createBusinessTrip($user, ['status' => 'pending']);
@@ -184,7 +184,7 @@ class BusinessTripTest extends TestCase
 
     public function test_admin_can_reject_own_office_pending(): void
     {
-        $office = $this->createOffice('JKT001', 'Jakarta');
+        $office = $this->createOffice('JKT010', 'Jakarta');
         $admin = $this->createUser('admin', ['office_id' => $office->id]);
         $user = $this->createUser('user', ['office_id' => $office->id]);
         $trip = $this->createBusinessTrip($user, ['status' => 'pending']);
@@ -203,7 +203,7 @@ class BusinessTripTest extends TestCase
 
     public function test_admin_cannot_approve_non_pending(): void
     {
-        $office = $this->createOffice('JKT001', 'Jakarta');
+        $office = $this->createOffice('JKT010', 'Jakarta');
         $admin = $this->createUser('admin', ['office_id' => $office->id]);
         $user = $this->createUser('user', ['office_id' => $office->id]);
         $trip = $this->createBusinessTrip($user, ['status' => 'approved']);

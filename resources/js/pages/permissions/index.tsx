@@ -355,11 +355,6 @@ export default function PermissionsIndex({ permissions, filters, can }: IndexPro
                                                     </td>
                                                     <td className="px-4 py-3 text-muted-foreground">
                                                         {permission.start_date}
-                                                        {permission.end_date &&
-                                                        permission.end_date !==
-                                                            permission.start_date
-                                                            ? ` → ${permission.end_date}`
-                                                            : ''}
                                                     </td>
                                                     <td className="max-w-64 px-4 py-3 text-muted-foreground">
                                                         <span className="line-clamp-2">
@@ -496,14 +491,10 @@ export default function PermissionsIndex({ permissions, filters, can }: IndexPro
 
                             <div className="flex items-center justify-between gap-4">
                                 <span className="text-muted-foreground">
-                                    Date range
+                                    Date
                                 </span>
                                 <span className="font-medium">
                                     {selected.start_date}
-                                    {selected.end_date &&
-                                    selected.end_date !== selected.start_date
-                                        ? ` → ${selected.end_date}`
-                                        : ''}
                                 </span>
                             </div>
 
@@ -567,17 +558,13 @@ export default function PermissionsIndex({ permissions, filters, can }: IndexPro
                                 : 'Reject request?'}
                         </DialogTitle>
                         <DialogDescription>
-                            {toReview && (
-                                <>
-                                    {toReview.permission.user?.name} ·{' '}
-                                    {typeLabels[toReview.permission.type]} ·{' '}
-                                    {toReview.permission.start_date}
-                                    {toReview.permission.end_date !==
-                                    toReview.permission.start_date
-                                        ? ` → ${toReview.permission.end_date}`
-                                        : ''}
-                                </>
-                            )}
+{toReview && (
+                                        <>
+                                            {toReview.permission.user?.name} ·{' '}
+                                            {typeLabels[toReview.permission.type]} ·{' '}
+                                            {toReview.permission.start_date}
+                                        </>
+                                    )}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -643,11 +630,7 @@ export default function PermissionsIndex({ permissions, filters, can }: IndexPro
                                 <>
                                     This will cancel the{' '}
                                     {typeLabels[toCancel.type]} permission
-                                    request for{' '}
-                                    {toCancel.start_date}
-                                    {toCancel.end_date !== toCancel.start_date
-                                        ? ` → ${toCancel.end_date}`
-                                        : ''}
+                                    request for {toCancel.start_date}
                                     . This cannot be undone.
                                 </>
                             )}

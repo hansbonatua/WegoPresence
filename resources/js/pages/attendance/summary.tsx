@@ -266,6 +266,12 @@ export default function AttendanceSummary({
                                                     </span>
                                                 </th>
                                             ))}
+                                            <th className="px-4 py-3 text-left">
+                                                Office
+                                            </th>
+                                            <th className="px-4 py-3 text-left">
+                                                Permission Reason
+                                            </th>
                                         </tr>
                                     </thead>
 
@@ -299,6 +305,12 @@ export default function AttendanceSummary({
                                                         </Badge>
                                                     </td>
                                                 ))}
+                                                <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">
+                                                    {user.office}
+                                                </td>
+                                                <td className="px-4 py-2 text-muted-foreground">
+                                                    {user.permission_reason ?? '-'}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>

@@ -13,7 +13,7 @@ class PermissionService
      * Create a permission request for a user. The owner and the status
      * are always determined by the server.
      *
-     * @param  array{type: string, start_date: string, end_date: string, reason: string}  $data
+     * @param  array{type: string, start_date: string, reason: string}  $data
      */
     public function create(User $user, array $data): Permission
     {
@@ -21,15 +21,10 @@ class PermissionService
             throw new PermissionException('Your account is not active.');
         }
 
-        if ($this->datesAreInvalid($data['start_date'], $data['end_date'])) {
-            throw new PermissionException('The end date must be after or equal to the start date.');
-        }
-
         return Permission::query()->create([
             'user_id' => $user->id,
             'type' => $data['type'],
             'start_date' => $data['start_date'],
-            'end_date' => $data['end_date'],
             'reason' => $data['reason'],
             'status' => 'pending',
         ]);
@@ -129,11 +124,6 @@ class PermissionService
         if ($permission->status !== 'pending') {
             throw new PermissionException('Only pending permissions can be modified.');
         }
-    }
-
-    private function datesAreInvalid(string $startDate, string $endDate): bool
-    {
-        return $endDate < $startDate;
     }
 
     private function isValidStatus(string $status): bool

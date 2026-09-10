@@ -26,7 +26,6 @@ class StorePermissionRequest extends FormRequest
         return [
             'type' => ['required', Rule::in(['personal', 'official'])],
             'start_date' => ['required', 'date', 'after_or_equal:today'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['required', 'string', 'min:3', 'max:1000'],
         ];
     }

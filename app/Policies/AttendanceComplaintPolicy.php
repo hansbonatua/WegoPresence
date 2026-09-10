@@ -60,11 +60,11 @@ class AttendanceComplaintPolicy
     }
 
     /**
-     * Admins only manage complaints raised by employees of their own office.
+     * Determine whether the user manages complaints. Admins manage
+     * complaints from every office.
      */
     private function managesComplaint(User $user, AttendanceComplaint $complaint): bool
     {
-        return $user->isAdmin()
-            && $complaint->user?->office_id === $user->office_id;
+        return $user->isAdmin();
     }
 }

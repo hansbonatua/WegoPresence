@@ -42,14 +42,22 @@ class UpdateUserRequest extends FormRequest
     }
 
     /**
-     * The role ids the authenticated user is allowed to assign.
+     * The role ids the authenticated user is allowed to assign. Super
+     * admins can assign every role; admins can assign the user and
+     * admin roles; other users cannot assign any role.
      *
      * @return array<int, int>
      */
     private function assignableRoleIds(): array
     {
-        if ($this->user()?->isSuperAdmin()) {
+        $user = $this->user();
+
+        if ($user?->isSuperAdmin()) {
             return Role::pluck('id')->all();
+        }
+
+        if ($user?->isAdmin()) {
+            return array_values(Role::whereIn('name', ['user', 'admin'])->pluck('id')->all());
         }
 
         return array_values(array_filter([Role::where('name', 'user')->value('id')]));

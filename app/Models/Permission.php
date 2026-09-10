@@ -14,7 +14,6 @@ class Permission extends Model
         'user_id',
         'type',
         'start_date',
-        'end_date',
         'reason',
         'status',
         'approved_by',
@@ -25,7 +24,6 @@ class Permission extends Model
     {
         return [
             'start_date' => 'date',
-            'end_date' => 'date',
         ];
     }
 

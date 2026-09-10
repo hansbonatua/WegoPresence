@@ -107,7 +107,8 @@ class RegistrationService
     }
 
     /**
-     * Paginate registrations by status, scoping admins to their own office.
+     * Paginate registrations by status. Managers (admins and super
+     * admins) can see registrations from every office.
      *
      * @param  array{search?: string|null}  $filters
      */
@@ -119,10 +120,6 @@ class RegistrationService
             ->with(['role:id,name', 'office:id,office_code,office_name'])
             ->where('status', $status)
             ->latest();
-
-        if ($reviewer->isAdmin()) {
-            $query->where('office_id', $reviewer->office_id);
-        }
 
         $search = $filters['search'] ?? null;
 

@@ -19,7 +19,6 @@ import type { PermissionType } from '@/types';
 type CreatePermissionForm = {
     type: PermissionType;
     start_date: string;
-    end_date: string;
     reason: string;
 };
 
@@ -33,7 +32,6 @@ export default function CreatePermission() {
     const form = useForm<CreatePermissionForm>({
         type: 'personal',
         start_date: '',
-        end_date: '',
         reason: '',
     });
 
@@ -114,26 +112,6 @@ export default function CreatePermission() {
                                 />
                                 <InputError
                                     message={form.errors.start_date}
-                                    className="mt-1"
-                                />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="end_date">End date</Label>
-                                <Input
-                                    id="end_date"
-                                    type="date"
-                                    value={form.data.end_date}
-                                    onChange={(event) =>
-                                        form.setData(
-                                            'end_date',
-                                            event.target.value,
-                                        )
-                                    }
-                                    aria-invalid={!!form.errors.end_date}
-                                />
-                                <InputError
-                                    message={form.errors.end_date}
                                     className="mt-1"
                                 />
                             </div>

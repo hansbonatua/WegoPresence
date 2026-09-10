@@ -26,25 +26,27 @@ class AttendanceSummaryService
     private const DINAS = 'D';
 
     /**
-     * Build the HR attendance matrix for the admin's own office.
+     * Build the HR attendance matrix for the reviewer.
      *
-     * All data (users, attendances, approved permissions, approved leaves,
-     * approved sick leaves) is loaded in a handful of batched queries and
-     * combined in memory, so the number of queries does not grow with the
-     * number of users or dates.
+     * Super admins and admins see the whole company; regular employees
+     * are not granted access through the policy. All data (users,
+     * attendances, approved permissions, approved leaves, approved sick
+     * leaves) is loaded in a handful of batched queries and combined in
+     * memory, so the number of queries does not grow with the number of
+     * users or dates.
      *
-     * @return array{users: array<int, array{nip: string, name: string, position: string, dates: array<string, string>}>, dates: array<int, string>, summary: array{total_users: int, hadir: int, absen: int, izin: int, cuti: int, sakit: int, dinas: int}}
+     * @return array{users: array<int, array{nip: string, name: string, position: string, office: string, permission_reason: string|null, dates: array<string, string>}>, dates: array<int, string>, summary: array{total_users: int, hadir: int, absen: int, izin: int, cuti: int, sakit: int, dinas: int}}
      */
     public function getSummary(User $admin, CarbonImmutable $startDate, CarbonImmutable $endDate): array
     {
         $dates = $this->dateRange($startDate, $endDate);
 
         $users = User::query()
-            ->where('office_id', $admin->office_id)
+            ->with('office:id,office_name')
             ->where('status', 'active')
             ->where('id', '!=', $admin->id)
             ->orderBy('nip')
-            ->get(['id', 'nip', 'name', 'position']);
+            ->get(['id', 'nip', 'name', 'position', 'office_id']);
 
         $userIds = $users->pluck('id');
 
@@ -52,7 +54,7 @@ class AttendanceSummaryService
         $businessTrips = $this->approvedRangesByUser(BusinessTrip::class, $userIds, $startDate, $endDate);
         $sickLeaves = $this->approvedRangesByUser(SickLeave::class, $userIds, $startDate, $endDate);
         $leaves = $this->approvedRangesByUser(LeaveRequest::class, $userIds, $startDate, $endDate);
-        $permissions = $this->approvedRangesByUser(Permission::class, $userIds, $startDate, $endDate);
+        $permissions = $this->approvedPermissionsByUser($userIds, $startDate, $endDate);
 
         $rows = [];
 
@@ -75,6 +77,8 @@ class AttendanceSummaryService
                 'nip' => $user->nip,
                 'name' => $user->name,
                 'position' => $user->position,
+                'office' => $user->office?->office_name ?? '-',
+                'permission_reason' => $this->permissionReason($permissions->get($user->id, [])),
                 'dates' => $userDates,
             ];
         }
@@ -133,6 +137,45 @@ class AttendanceSummaryService
     }
 
     /**
+     * Approved permissions grouped by user. A permission is valid for a
+     * single day only (its start date), so each record keeps that date
+     * and its reason.
+     *
+     * @param  Collection<int, int>  $userIds
+     * @return Collection<int, array<int, array{date: string, reason: string}>>
+     */
+    private function approvedPermissionsByUser($userIds, CarbonImmutable $startDate, CarbonImmutable $endDate): Collection
+    {
+        return Permission::query()
+            ->whereIn('user_id', $userIds)
+            ->where('status', 'approved')
+            ->whereDate('start_date', '>=', $startDate->toDateString())
+            ->whereDate('start_date', '<=', $endDate->toDateString())
+            ->get(['user_id', 'start_date', 'reason'])
+            ->groupBy('user_id')
+            ->map(fn ($items) => $items
+                ->map(fn ($item): array => [
+                    'date' => $item->start_date->format('Y-m-d'),
+                    'reason' => $item->reason,
+                ])
+                ->all());
+    }
+
+    /**
+     * Resolve the "Permission Reason" value for a row: the unique,
+     * non-empty reasons of the user's approved permissions within the
+     * period, or null when there is no approved permission.
+     *
+     * @param  array<int, array{date: string, reason: string}>  $permissions
+     */
+    private function permissionReason(array $permissions): ?string
+    {
+        $reasons = collect($permissions)->pluck('reason')->filter()->unique()->values();
+
+        return $reasons->isEmpty() ? null : $reasons->implode(', ');
+    }
+
+    /**
      * Resolve the single status for a user on a given date, in priority
      * order: approved dinas, approved sick leave, approved leave,
      * approved permission, attendance, absent.
@@ -141,7 +184,7 @@ class AttendanceSummaryService
      * @param  Collection<int, array<int, array{start: string, end: string}>>  $businessTrips
      * @param  Collection<int, array<int, array{start: string, end: string}>>  $sickLeaves
      * @param  Collection<int, array<int, array{start: string, end: string}>>  $leaves
-     * @param  Collection<int, array<int, array{start: string, end: string}>>  $permissions
+     * @param  Collection<int, array<int, array{date: string, reason: string}>>  $permissions
      */
     private function statusFor(
         string $date,
@@ -164,7 +207,7 @@ class AttendanceSummaryService
             return self::LEAVE;
         }
 
-        if ($this->rangeCovers($permissions->get($userId, []), $date)) {
+        if ($this->permissionCovers($permissions->get($userId, []), $date)) {
             return self::PERMISSION;
         }
 
@@ -184,6 +227,22 @@ class AttendanceSummaryService
     {
         foreach ($ranges as $range) {
             if ($date >= $range['start'] && $date <= $range['end']) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether any approved permission falls on the given date.
+     *
+     * @param  array<int, array{date: string, reason: string}>  $permissions
+     */
+    private function permissionCovers(array $permissions, string $date): bool
+    {
+        foreach ($permissions as $permission) {
+            if ($permission['date'] === $date) {
                 return true;
             }
         }

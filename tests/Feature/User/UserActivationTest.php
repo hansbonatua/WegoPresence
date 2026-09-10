@@ -22,7 +22,7 @@ class UserActivationTest extends TestCase
         self::$officeSequence++;
 
         return Office::query()->create([
-            'office_code' => 'JKT'.str_pad((string) self::$officeSequence, 3, '0', STR_PAD_LEFT),
+            'office_code' => 'OFC'.str_pad((string) self::$officeSequence, 3, '0', STR_PAD_LEFT),
             'office_name' => 'Office '.self::$officeSequence,
             'city' => 'Jakarta',
             'address' => 'Jl. Test '.self::$officeSequence,
@@ -501,8 +501,8 @@ class UserActivationTest extends TestCase
         $response->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('dashboard')
-                ->where('cards.4.id', 'pending_registrations')
-                ->where('cards.4.value', 3));
+                ->where('cards.9.id', 'pending_registrations')
+                ->where('cards.9.value', 3));
     }
 
     public function test_dashboard_counts_all_pending_registrations_for_super_admins(): void
@@ -669,6 +669,86 @@ class UserActivationTest extends TestCase
         ]);
 
         $this->assertAuthenticatedAs($pending);
+    }
+
+    public function test_admin_can_create_a_user_with_the_admin_role(): void
+    {
+        $office = $this->createOffice();
+        $admin = $this->createManager('admin', $office);
+        $adminRole = Role::query()->firstOrCreate(['name' => 'admin'], ['name' => 'admin']);
+
+        $response = $this->actingAs($admin)->post(route('users.store'), [
+            'role_id' => $adminRole->id,
+            'office_id' => $office->id,
+            'nip' => '010101',
+            'name' => 'Branch Supervisor',
+            'position' => 'Supervisor',
+            'email' => 'branch.supervisor@example.com',
+            'phone' => '081234567890',
+            'join_date' => '2026-08-01',
+            'city' => 'Jakarta',
+            'status' => 'active',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertRedirect(route('users.index'));
+
+        $this->assertDatabaseHas('users', [
+            'nip' => '010101',
+            'role_id' => $adminRole->id,
+        ]);
+    }
+
+    public function test_admin_cannot_create_a_user_with_the_super_admin_role(): void
+    {
+        $office = $this->createOffice();
+        $admin = $this->createManager('admin', $office);
+        $superRole = Role::query()->firstOrCreate(['name' => 'super_admin'], ['name' => 'super_admin']);
+
+        $response = $this->actingAs($admin)->from(route('users.create'))->post(route('users.store'), [
+            'role_id' => $superRole->id,
+            'office_id' => $office->id,
+            'nip' => '010102',
+            'name' => 'Not Allowed',
+            'position' => 'Supervisor',
+            'email' => 'not.allowed@example.com',
+            'phone' => '081234567891',
+            'join_date' => '2026-08-01',
+            'city' => 'Jakarta',
+            'status' => 'active',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertSessionHasErrors('role_id');
+        $this->assertDatabaseMissing('users', ['nip' => '010102']);
+    }
+
+    public function test_admin_can_update_another_admin_without_changing_their_role(): void
+    {
+        $office = $this->createOffice();
+        $admin = $this->createManager('admin', $office);
+        $otherAdmin = $this->createManager('admin', $office);
+        $adminRole = Role::query()->firstOrCreate(['name' => 'admin'], ['name' => 'admin']);
+
+        $response = $this->actingAs($admin)->put(route('users.update', $otherAdmin), [
+            'role_id' => $adminRole->id,
+            'office_id' => $office->id,
+            'nip' => $otherAdmin->nip,
+            'name' => 'Updated Admin',
+            'position' => 'Senior Supervisor',
+            'email' => $otherAdmin->email,
+            'phone' => $otherAdmin->phone,
+            'join_date' => $otherAdmin->join_date,
+            'city' => $otherAdmin->city,
+            'status' => 'active',
+        ]);
+
+        $response->assertRedirect(route('users.index'));
+
+        $this->assertSame($adminRole->id, $otherAdmin->fresh()->role_id);
+        $this->assertSame('Updated Admin', $otherAdmin->fresh()->name);
     }
 
     private function createPending(Office $office, ?string $nip = '555555'): User

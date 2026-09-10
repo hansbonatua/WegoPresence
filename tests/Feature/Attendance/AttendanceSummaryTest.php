@@ -42,11 +42,37 @@ class AttendanceSummaryTest extends TestCase
         $this->actingAs($user)->get(route('attendance.summary'))->assertForbidden();
     }
 
-    public function test_super_admins_are_forbidden(): void
+    public function test_super_admins_can_access_the_summary(): void
     {
         $super = $this->createManager('super_admin');
 
-        $this->actingAs($super)->get(route('attendance.summary'))->assertForbidden();
+        $this->actingAs($super)->get(route('attendance.summary'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('attendance/summary')
+                ->has('dates')
+                ->has('users')
+                ->has('summary'));
+    }
+
+    public function test_super_admin_sees_users_from_all_offices(): void
+    {
+        $officeA = $this->createOffice();
+        $officeB = $this->createOffice();
+        $super = $this->createManager('super_admin', ['office_id' => $officeA->id]);
+        $userA = $this->createUser('user', ['office_id' => $officeA->id, 'nip' => '010001']);
+        $userB = $this->createUser('user', ['office_id' => $officeB->id, 'nip' => '010002']);
+
+        $response = $this->actingAs($super)->get(route('attendance.summary'));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('attendance/summary')
+                ->has('users', 2)
+                ->where('users', fn ($users) => collect($users)
+                    ->pluck('nip')
+                    ->diff([$userA->nip, $userB->nip])
+                    ->isEmpty()));
     }
 
     public function test_guests_are_redirected_to_login(): void
@@ -54,7 +80,7 @@ class AttendanceSummaryTest extends TestCase
         $this->get(route('attendance.summary'))->assertRedirect(route('login'));
     }
 
-    public function test_admin_only_sees_users_from_their_own_office(): void
+    public function test_admin_sees_users_from_all_offices(): void
     {
         $adminOffice = $this->createOffice();
         $otherOffice = $this->createOffice();
@@ -67,18 +93,21 @@ class AttendanceSummaryTest extends TestCase
         $response->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('attendance/summary')
-                ->has('users', 1)
-                ->where('users.0.nip', $ownUser->nip));
+                ->has('users', 2)
+                ->where('users', fn ($users) => collect($users)
+                    ->pluck('nip')
+                    ->diff([$ownUser->nip, $otherUser->nip])
+                    ->isEmpty()));
 
         $this->assertNotSame($ownUser->nip, $otherUser->nip);
     }
 
-    public function test_admin_cannot_bypass_the_office_scope(): void
+    public function test_admin_is_not_bound_to_their_own_office(): void
     {
         $adminOffice = $this->createOffice();
         $otherOffice = $this->createOffice();
         $admin = $this->createManager('admin', ['office_id' => $adminOffice->id]);
-        $this->createUser('user', ['office_id' => $otherOffice->id, 'nip' => '010002']);
+        $other = $this->createUser('user', ['office_id' => $otherOffice->id, 'nip' => '010002']);
 
         $response = $this->actingAs($admin)->get(route('attendance.summary', [
             'office_id' => $otherOffice->id,
@@ -87,7 +116,25 @@ class AttendanceSummaryTest extends TestCase
         $response->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('attendance/summary')
-                ->has('users', 0));
+                ->has('users', 1)
+                ->where('users.0.nip', $other->nip));
+    }
+
+    public function test_admin_summary_includes_other_admins(): void
+    {
+        $adminOffice = $this->createOffice();
+        $otherOffice = $this->createOffice();
+        $admin = $this->createManager('admin', ['office_id' => $adminOffice->id]);
+        $otherAdmin = $this->createManager('admin', ['office_id' => $otherOffice->id, 'nip' => '010005']);
+
+        $response = $this->actingAs($admin)->get(route('attendance.summary'));
+
+        $response->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('attendance/summary')
+                ->where('users', fn ($users) => collect($users)
+                    ->pluck('nip')
+                    ->contains($otherAdmin->nip)));
     }
 
     public function test_saturday_attendance_shows_present(): void
@@ -313,19 +360,100 @@ class AttendanceSummaryTest extends TestCase
             ->where('users.0.dates.'.$start->format('Y-m-d'), 'I'));
     }
 
-    public function test_pending_permission_does_not_produce_permission(): void
+    public function test_approved_permission_reason_is_displayed(): void
+    {
+        [$start] = $this->mondayBasedWeek();
+        $admin = $this->createManager('admin');
+        $office = $this->createOffice();
+        $user = $this->createUser('user', ['office_id' => $office->id, 'nip' => '010001']);
+        $this->createPermission($user, $start, 'approved', 'Medical checkup');
+
+        $response = $this->actingAs($admin)->get(route('attendance.summary', [
+            'start_date' => $start->format('Y-m-d'),
+            'end_date' => $start->format('Y-m-d'),
+        ]));
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('attendance/summary')
+            ->where('users.0.dates.'.$start->format('Y-m-d'), 'I')
+            ->where('users.0.permission_reason', 'Medical checkup')
+            ->where('users.0.office', $office->office_name));
+    }
+
+    public function test_pending_permission_does_not_show_reason(): void
     {
         [$start] = $this->mondayBasedWeek();
         $admin = $this->createManager('admin');
         $user = $this->createUser('user', ['office_id' => $admin->office_id]);
-        $this->createPermission($user, $start, 'pending');
+        $this->createPermission($user, $start, 'pending', 'Medical checkup');
 
         $this->actingAs($admin)->get(route('attendance.summary', [
             'start_date' => $start->format('Y-m-d'),
             'end_date' => $start->format('Y-m-d'),
         ]))->assertInertia(fn ($page) => $page
             ->component('attendance/summary')
-            ->where('users.0.dates.'.$start->format('Y-m-d'), 'A'));
+            ->where('users.0.permission_reason', null));
+    }
+
+    public function test_rejected_permission_does_not_show_reason(): void
+    {
+        [$start] = $this->mondayBasedWeek();
+        $admin = $this->createManager('admin');
+        $user = $this->createUser('user', ['office_id' => $admin->office_id]);
+        $this->createPermission($user, $start, 'rejected', 'Medical checkup');
+
+        $this->actingAs($admin)->get(route('attendance.summary', [
+            'start_date' => $start->format('Y-m-d'),
+            'end_date' => $start->format('Y-m-d'),
+        ]))->assertInertia(fn ($page) => $page
+            ->component('attendance/summary')
+            ->where('users.0.permission_reason', null));
+    }
+
+    public function test_admin_sees_permission_reason_of_users_from_other_offices(): void
+    {
+        [$start] = $this->mondayBasedWeek();
+        $adminOffice = $this->createOffice();
+        $otherOffice = $this->createOffice();
+        $admin = $this->createManager('admin', ['office_id' => $adminOffice->id]);
+        $other = $this->createUser('user', ['office_id' => $otherOffice->id, 'nip' => '010002']);
+        $this->createPermission($other, $start, 'approved', 'Family matter');
+
+        $response = $this->actingAs($admin)->get(route('attendance.summary', [
+            'start_date' => $start->format('Y-m-d'),
+            'end_date' => $start->format('Y-m-d'),
+        ]));
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('attendance/summary')
+            ->where('users.0.permission_reason', 'Family matter')
+            ->where('users.0.office', $otherOffice->office_name));
+    }
+
+    public function test_super_admin_sees_all_permission_reasons(): void
+    {
+        [$start] = $this->mondayBasedWeek();
+        $officeA = $this->createOffice();
+        $officeB = $this->createOffice();
+        $super = $this->createManager('super_admin');
+        $userA = $this->createUser('user', ['office_id' => $officeA->id, 'nip' => '010001']);
+        $userB = $this->createUser('user', ['office_id' => $officeB->id, 'nip' => '010002']);
+        $this->createPermission($userA, $start, 'approved', 'Medical checkup');
+        $this->createPermission($userB, $start, 'approved', 'Family matter');
+
+        $response = $this->actingAs($super)->get(route('attendance.summary', [
+            'start_date' => $start->format('Y-m-d'),
+            'end_date' => $start->format('Y-m-d'),
+        ]));
+
+        $response->assertInertia(fn ($page) => $page
+            ->component('attendance/summary')
+            ->has('users', 2)
+            ->where('users', fn ($users) => collect($users)
+                ->pluck('permission_reason')
+                ->diff(['Medical checkup', 'Family matter'])
+                ->isEmpty())
+            ->where('summary.izin', 2));
     }
 
     public function test_approved_leave_produces_leave(): void
@@ -814,7 +942,7 @@ class AttendanceSummaryTest extends TestCase
         self::$officeSequence++;
 
         return Office::query()->create([
-            'office_code' => 'JKT'.str_pad((string) self::$officeSequence, 3, '0', STR_PAD_LEFT),
+            'office_code' => 'OFC'.str_pad((string) self::$officeSequence, 3, '0', STR_PAD_LEFT),
             'office_name' => 'Office '.self::$officeSequence,
             'city' => 'Jakarta',
             'address' => 'Jl. Test '.self::$officeSequence,
@@ -853,13 +981,12 @@ class AttendanceSummaryTest extends TestCase
         ]);
     }
 
-    private function createPermission(User $user, CarbonImmutable $date, string $status): Permission
+    private function createPermission(User $user, CarbonImmutable $date, string $status, ?string $reason = null): Permission
     {
         return Permission::query()->create([
             'user_id' => $user->id,
             'start_date' => $date->toDateString(),
-            'end_date' => $date->toDateString(),
-            'reason' => 'Smoke permission',
+            'reason' => $reason ?? 'Smoke permission',
             'status' => $status,
         ]);
     }
