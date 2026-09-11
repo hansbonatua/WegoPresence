@@ -253,21 +253,20 @@ class AttendancePhotoTest extends TestCase
         $response = $this->postCheckIn();
 
         $response->assertRedirect();
-        $response->assertSessionHas('error', 'Your current location is outside your assigned office city.');
+        $response->assertSessionHas('error', 'Your current location is outside your assigned working city.');
         $this->assertDatabaseCount('attendances', 0);
         $this->assertEmpty(Storage::disk('public')->files('attendance/check-in'));
     }
 
-    public function test_missing_office_is_still_rejected_with_a_valid_photo(): void
+    public function test_missing_user_city_is_still_rejected_with_a_valid_photo(): void
     {
-        $user = $this->createUser($this->createOffice('Jakarta Pusat'));
-        $user->office->delete();
-        $this->fakeNominatim('Jakarta Pusat');
+        $this->createUser($this->createOffice('Jakarta Pusat'), '');
+        $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
 
         $response = $this->postCheckIn();
 
         $response->assertRedirect();
-        $response->assertSessionHas('error', 'Your office location is not configured.');
+        $response->assertSessionHas('error', 'Your working city is not configured.');
         $this->assertDatabaseCount('attendances', 0);
         $this->assertEmpty(Storage::disk('public')->files('attendance/check-in'));
     }
@@ -285,7 +284,7 @@ class AttendancePhotoTest extends TestCase
         ]);
     }
 
-    private function createUser(Office $office, string $nip = '889900', string $email = 'gps.test@example.com'): User
+    private function createUser(Office $office, string $city = 'DKI Jakarta', string $nip = '889900', string $email = 'gps.test@example.com'): User
     {
         $role = Role::query()->firstOrCreate(['name' => 'user']);
 
@@ -297,7 +296,7 @@ class AttendancePhotoTest extends TestCase
             'position' => 'Staff',
             'email' => $email,
             'join_date' => '2026-01-01',
-            'city' => 'Bandar Lampung',
+            'city' => $city,
             'status' => 'active',
             'password' => 'password',
         ]);

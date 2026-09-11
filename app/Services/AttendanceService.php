@@ -46,10 +46,10 @@ class AttendanceService
      * @param  array{latitude: float|string, longitude: float|string, position_timestamp?: int, photo?: UploadedFile}  $data
      *
      * @throws AttendanceException When the user has already checked in today,
-     *                             the position data is stale, the office is
-     *                             not configured, the GPS location cannot be
-     *                             verified, or the city does not match the
-     *                             assigned office.
+     *                             the position data is stale, the working
+     *                             city is not configured, the GPS location
+     *                             cannot be verified, or the city does not
+     *                             match the user's working city.
      */
     public function checkIn(User $user, array $data): Attendance
     {
@@ -59,17 +59,19 @@ class AttendanceService
 
         $this->assertPositionFresh((int) ($data['position_timestamp'] ?? 0));
 
-        $office = $user->office;
+        // Check-in location is the user's working city, not the office.
+        // The office stays as an administrative/organizational attribute.
+        $city = $user->city;
 
-        if ($office === null || blank($office->city)) {
-            throw new AttendanceException('Your office location is not configured.');
+        if (blank($city)) {
+            throw new AttendanceException('Your working city is not configured.');
         }
 
         $latitude = (float) $data['latitude'];
         $longitude = (float) $data['longitude'];
 
-        if (! $this->matchesOfficeCity($latitude, $longitude, $office->city)) {
-            throw new AttendanceException('Your current location is outside your assigned office city.');
+        if (! $this->matchesCity($latitude, $longitude, $city)) {
+            throw new AttendanceException('Your current location is outside your assigned working city.');
         }
 
         $now = Carbon::now('Asia/Jakarta');
@@ -374,16 +376,16 @@ class AttendanceService
     }
 
     /**
-     * Verify that the GPS coordinates resolve to the office city.
+     * Verify that the GPS coordinates resolve to the user's working city.
      */
-    private function matchesOfficeCity(float $latitude, float $longitude, string $officeCity): bool
+    private function matchesCity(float $latitude, float $longitude, string $city): bool
     {
         $gpsCity = $this->resolveGpsCity($latitude, $longitude);
 
-        $normalizedOfficeCity = CityNormalizer::normalize($officeCity);
+        $normalizedCity = CityNormalizer::normalize($city);
 
         foreach ($gpsCity['candidates'] as $candidate) {
-            if (CityNormalizer::normalize($candidate) === $normalizedOfficeCity) {
+            if (CityNormalizer::normalize($candidate) === $normalizedCity) {
                 return true;
             }
         }

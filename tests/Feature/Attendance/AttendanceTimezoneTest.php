@@ -273,7 +273,7 @@ class AttendanceTimezoneTest extends TestCase
             'position' => 'Staff',
             'email' => 'tz.test'.self::$userSequence.'@example.com',
             'join_date' => '2026-01-01',
-            'city' => 'Bandar Lampung',
+            'city' => 'DKI Jakarta',
             'status' => 'active',
             'password' => 'password',
         ]);

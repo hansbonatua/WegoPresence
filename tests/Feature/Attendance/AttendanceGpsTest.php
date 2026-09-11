@@ -38,7 +38,7 @@ class AttendanceGpsTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_check_in_is_allowed_when_gps_city_matches_office_city(): void
+    public function test_check_in_is_allowed_when_gps_city_matches_user_city(): void
     {
         $user = $this->createUser($this->createOffice('DKI Jakarta'));
         $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
@@ -122,22 +122,37 @@ class AttendanceGpsTest extends TestCase
             $response = $this->postCheckIn([], $user);
 
             $response->assertRedirect();
-            $response->assertSessionHas('error', 'Your current location is outside your assigned office city.');
+            $response->assertSessionHas('error', 'Your current location is outside your assigned working city.');
 
             $this->assertDatabaseMissing('attendances', ['user_id' => $user->id]);
         }
     }
 
-    public function test_check_in_is_rejected_when_gps_city_differs_from_office_city(): void
+    public function test_check_in_uses_the_user_city_even_when_it_differs_from_the_office_city(): void
     {
-        $this->createUser($this->createOffice('DKI Jakarta'));
-        $this->fakeNominatim('Bandar Lampung');
+        $this->createUser($this->createOffice('DKI Jakarta'), 'Balikpapan');
+        $this->fakeNominatim('Balikpapan');
 
         $response = $this->postCheckIn();
 
         $response->assertRedirect();
-        $response->assertSessionHas('error', 'Your current location is outside your assigned office city.');
-        $this->assertDatabaseCount('attendances', 0);
+        $response->assertSessionHas('success');
+        $this->assertDatabaseCount('attendances', 1);
+    }
+
+    public function test_check_in_is_rejected_when_gps_city_differs_from_user_city_even_if_office_city_matches(): void
+    {
+        $this->createUser($this->createOffice('DKI Jakarta'), 'Balikpapan');
+
+        foreach (['Banjarmasin', 'Kota Administrasi Jakarta Pusat'] as $area) {
+            $this->fakeNominatim($area);
+
+            $response = $this->postCheckIn();
+
+            $response->assertRedirect();
+            $response->assertSessionHas('error', 'Your current location is outside your assigned working city.');
+            $this->assertDatabaseCount('attendances', 0);
+        }
     }
 
     public function test_check_in_is_rejected_when_reverse_geocoding_fails(): void
@@ -154,16 +169,15 @@ class AttendanceGpsTest extends TestCase
         $this->assertDatabaseCount('attendances', 0);
     }
 
-    public function test_check_in_is_rejected_when_office_is_not_configured(): void
+    public function test_check_in_is_rejected_when_user_city_is_not_configured(): void
     {
-        $user = $this->createUser($this->createOffice('DKI Jakarta'));
-        $user->office->delete();
-        $this->fakeNominatim('Jakarta Pusat');
+        $this->createUser($this->createOffice('DKI Jakarta'), '');
+        $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
 
         $response = $this->postCheckIn();
 
         $response->assertRedirect();
-        $response->assertSessionHas('error', 'Your office location is not configured.');
+        $response->assertSessionHas('error', 'Your working city is not configured.');
         $this->assertDatabaseCount('attendances', 0);
     }
 
@@ -344,7 +358,7 @@ class AttendanceGpsTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHas('success');
 
-        $secondUser = $this->createUser($this->createOffice('DKI Jakarta', '08:00:00', 'JKT002'), '889901', 'gps.test2@example.com');
+        $secondUser = $this->createUser($this->createOffice('DKI Jakarta', '08:00:00', 'JKT002'), 'DKI Jakarta', '889901', 'gps.test2@example.com');
         $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
 
         $response = $this->postCheckIn([
@@ -459,7 +473,7 @@ class AttendanceGpsTest extends TestCase
         ]);
     }
 
-    private function createUser(Office $office, ?string $nip = null, ?string $email = null): User
+    private function createUser(Office $office, ?string $city = 'DKI Jakarta', ?string $nip = null, ?string $email = null): User
     {
         self::$userSequence++;
 
@@ -476,7 +490,7 @@ class AttendanceGpsTest extends TestCase
             'position' => 'Staff',
             'email' => $email,
             'join_date' => '2026-01-01',
-            'city' => 'Bandar Lampung',
+            'city' => $city,
             'status' => 'active',
             'password' => 'password',
         ]);
