@@ -363,6 +363,9 @@ export default function AttendanceRecap({
                                         </th>
                                         <th className="px-4 py-3">Status</th>
                                         <th className="px-4 py-3">
+                                            Permission Reason
+                                        </th>
+                                        <th className="px-4 py-3">
                                             Location
                                         </th>
                                     </tr>
@@ -377,7 +380,7 @@ export default function AttendanceRecap({
                                                     className="border-b"
                                                 >
                                                     <td
-                                                        colSpan={8}
+                                                        colSpan={9}
                                                         className="px-4 py-4"
                                                     >
                                                         <Skeleton className="h-8 w-full" />
@@ -387,7 +390,7 @@ export default function AttendanceRecap({
                                         )
                                     ) : recaps.data.length === 0 ? (
                                         <tr>
-                                            <td colSpan={8}>
+                                            <td colSpan={9}>
                                                 <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
                                                     <div className="rounded-full bg-muted p-3">
                                                         <SearchX className="size-6 text-muted-foreground" />
@@ -449,6 +452,9 @@ export default function AttendanceRecap({
                                                     ) : (
                                                         '\u2014'
                                                     )}
+                                                </td>
+                                                <td className="px-4 py-3 text-muted-foreground">
+                                                    {record.permission_reason ?? '\u2014'}
                                                 </td>
                                                 <td className="px-4 py-3 text-muted-foreground">
                                                     {record.latitude &&

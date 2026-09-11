@@ -40,6 +40,7 @@ class AttendanceExportService
             'Check In',
             'Check Out',
             'Status',
+            'Permission Reason',
             'Late Minutes',
             'Latitude',
             'Longitude',
@@ -56,6 +57,7 @@ class AttendanceExportService
                 $row['check_in_time'],
                 $row['check_out_time'],
                 $row['status'],
+                $row['permission_reason'] ?? '-',
                 $row['late_minutes'],
                 $row['latitude'],
                 $row['longitude'],
@@ -105,8 +107,11 @@ class AttendanceExportService
      */
     private function rows(User $user, array $filters): Collection
     {
-        return $this->attendanceService->recapRecords($user, $filters)->map(
-            function (Attendance $attendance): array {
+        $attendances = $this->attendanceService->recapRecords($user, $filters);
+        $permissionReasons = $this->attendanceService->permissionReasonsFor($attendances);
+
+        return $attendances->map(
+            function (Attendance $attendance) use ($permissionReasons): array {
                 $recapStatus = AttendanceService::computeRecapStatus($attendance->check_in_time);
                 $lateMinutes = AttendanceService::computeRecapLateMinutes($attendance->check_in_time);
 
@@ -119,6 +124,7 @@ class AttendanceExportService
                     'check_in_time' => $attendance->check_in_time?->format('H:i') ?? '-',
                     'check_out_time' => $attendance->check_out_time?->format('H:i') ?? '-',
                     'status' => $recapStatus === 'late' ? 'Terlambat' : 'Hadir',
+                    'permission_reason' => $permissionReasons[$attendance->user_id.'|'.$attendance->attendance_date->format('Y-m-d')] ?? null,
                     'late_minutes' => $lateMinutes,
                     'latitude' => $attendance->latitude ?? '',
                     'longitude' => $attendance->longitude ?? '',

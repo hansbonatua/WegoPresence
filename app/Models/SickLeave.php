@@ -21,11 +21,17 @@ class SickLeave extends Model
         'approval_notes',
     ];
 
+    /**
+     * `start_date` and `end_date` are date-only inputs. They are cast
+     * with an explicit `date:Y-m-d` format so the values are serialized
+     * as plain date strings instead of being shifted to UTC by the
+     * application timezone (Asia/Jakarta).
+     */
     protected function casts(): array
     {
         return [
-            'start_date' => 'date',
-            'end_date' => 'date',
+            'start_date' => 'date:Y-m-d',
+            'end_date' => 'date:Y-m-d',
         ];
     }
 

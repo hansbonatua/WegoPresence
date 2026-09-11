@@ -59,7 +59,7 @@ class AttendanceSummaryExportService
 
         $this->styleTable($sheet, $startDate, $endDate, $lastDataRow);
 
-        $lastColumn = self::IDENTITY_COLUMNS + count($data['dates']) + 2;
+        $lastColumn = self::IDENTITY_COLUMNS + count($data['dates']) + 1;
         $sheet->setAutoFilter(Coordinate::stringFromColumnIndex(1).self::HEADER_ROW.':'.Coordinate::stringFromColumnIndex($lastColumn).$lastDataRow);
 
         $sheet->freezePane(Coordinate::stringFromColumnIndex(self::IDENTITY_COLUMNS + 1).(self::HEADER_ROW + 1));
@@ -74,7 +74,7 @@ class AttendanceSummaryExportService
     }
 
     /**
-     * @param  array<int, array{nip: string, name: string, position: string, office: string, permission_reason: string|null, dates: array<string, string>}>  $users
+     * @param  array<int, array{nip: string, name: string, position: string, office: string, dates: array<string, string>}>  $users
      * @param  array<int, string>  $dates
      */
     private function writeTable(Worksheet $sheet, array $users, array $dates): int
@@ -90,7 +90,6 @@ class AttendanceSummaryExportService
         }
 
         $headerRow[] = 'Office';
-        $headerRow[] = 'Permission Reason';
 
         $sheet->fromArray($headerRow, null, 'A'.self::HEADER_ROW);
 
@@ -103,7 +102,6 @@ class AttendanceSummaryExportService
             }
 
             $values[] = $user['office'] ?? '-';
-            $values[] = $user['permission_reason'] ?? '-';
 
             $sheet->fromArray($values, null, 'A'.$row);
         }
@@ -145,7 +143,7 @@ class AttendanceSummaryExportService
     private function styleTable(Worksheet $sheet, CarbonImmutable $startDate, CarbonImmutable $endDate, int $lastDataRow): void
     {
         $lastDateColumn = self::IDENTITY_COLUMNS + $this->dateCount($startDate, $endDate);
-        $lastColumn = $lastDateColumn + 2;
+        $lastColumn = $lastDateColumn + 1;
 
         $sheet->getStyle('A'.self::HEADER_ROW.':'.Coordinate::stringFromColumnIndex($lastColumn).$lastDataRow)
             ->getBorders()
@@ -179,7 +177,6 @@ class AttendanceSummaryExportService
         }
 
         $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($lastDateColumn + 1))->setWidth(20);
-        $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($lastDateColumn + 2))->setWidth(30);
 
         $sheet->getStyle('A'.self::HEADER_ROW.':D'.$lastDataRow)
             ->getAlignment()

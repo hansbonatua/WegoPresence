@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\AttendanceException;
 use App\Exceptions\GeocodingException;
 use App\Models\Attendance;
+use App\Models\Permission;
 use App\Models\User;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -172,18 +173,24 @@ class AttendanceService
      * Paginated attendance recap scoped to the authenticated user.
      *
      * Super admins see every record, admins see records of users in
-     * their own office, and employees only see their own records.
+     * their own office, and employees only see their own records. Each
+     * row includes the approved permission reason for the same user and
+     * date, when one exists.
      *
      * @param  array{start_date?: string|null, end_date?: string|null, search?: string|null, nip?: string|null, name?: string|null, office_id?: int|string|null, attendance_status?: string|null}  $filters
      */
     public function getAttendanceRecap(User $user, array $filters = []): LengthAwarePaginator
     {
-        return $this->buildRecapQuery($user, $filters)
+        $recaps = $this->buildRecapQuery($user, $filters)
             ->latest('attendance_date')
             ->latest('check_in_time')
             ->paginate(15)
-            ->withQueryString()
-            ->through(fn (Attendance $attendance): array => [
+            ->withQueryString();
+
+        $permissionReasons = $this->permissionReasonsFor($recaps->items());
+
+        return $recaps->through(function (Attendance $attendance) use ($permissionReasons): array {
+            return [
                 'id' => $attendance->id,
                 'user' => $attendance->user ? [
                     'id' => $attendance->user->id,
@@ -201,9 +208,11 @@ class AttendanceService
                 'check_out_time' => $attendance->check_out_time?->format('H:i'),
                 'attendance_status' => self::computeRecapStatus($attendance->check_in_time),
                 'late_minutes' => self::computeRecapLateMinutes($attendance->check_in_time),
+                'permission_reason' => $permissionReasons[$attendance->user_id.'|'.$attendance->attendance_date->format('Y-m-d')] ?? null,
                 'latitude' => $attendance->latitude,
                 'longitude' => $attendance->longitude,
-            ]);
+            ];
+        });
     }
 
     /**
@@ -218,6 +227,59 @@ class AttendanceService
             ->latest('attendance_date')
             ->latest('check_in_time')
             ->get();
+    }
+
+    /**
+     * Approved permission reason for each (user, date) found in the
+     * given attendance records. Only permissions with status "approved"
+     * are considered, so pending, rejected or cancelled permissions are
+     * ignored. Keys use the "user_id|Y-m-d" format.
+     *
+     * @param  iterable<Attendance>  $attendances
+     * @return array<string, string>
+     */
+    public function permissionReasonsFor(iterable $attendances): array
+    {
+        $keys = [];
+
+        foreach ($attendances as $attendance) {
+            if ($attendance->user_id !== null) {
+                $keys[$attendance->user_id.'|'.$attendance->attendance_date->format('Y-m-d')] = true;
+            }
+        }
+
+        if ($keys === []) {
+            return [];
+        }
+
+        $userIds = [];
+        $dates = [];
+
+        foreach (array_keys($keys) as $key) {
+            [$userId, $date] = explode('|', $key, 2);
+            $userIds[(int) $userId] = true;
+            $dates[$date] = true;
+        }
+
+        $reasons = [];
+
+        Permission::query()
+            ->whereIn('user_id', array_keys($userIds))
+            ->where('status', 'approved')
+            ->where(function ($query) use ($dates): void {
+                foreach (array_keys($dates) as $index => $date) {
+                    $index === 0
+                        ? $query->whereDate('start_date', $date)
+                        : $query->orWhereDate('start_date', $date);
+                }
+            })
+            ->get(['user_id', 'start_date', 'reason'])
+            ->each(function ($permission) use (&$reasons): void {
+                $key = $permission->user_id.'|'.$permission->start_date->format('Y-m-d');
+                $reasons[$key] ??= $permission->reason;
+            });
+
+        return $reasons;
     }
 
     /**

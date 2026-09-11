@@ -33,6 +33,7 @@
                 <th style="width: 8%">Check In</th>
                 <th style="width: 8%">Check Out</th>
                 <th style="width: 10%">Status</th>
+                <th style="width: 16%">Permission Reason</th>
                 <th style="width: 12%">Late (min)</th>
             </tr>
         </thead>
@@ -47,11 +48,12 @@
                     <td>{{ $row['check_in_time'] }}</td>
                     <td>{{ $row['check_out_time'] }}</td>
                     <td>{{ $row['status'] }}</td>
+                    <td>{{ $row['permission_reason'] ?? '-' }}</td>
                     <td>{{ $row['late_minutes'] ?? '-' }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9" style="text-align: center; padding: 16px;">
+                    <td colspan="10" style="text-align: center; padding: 16px;">
                         No attendance records found for this period.
                     </td>
                 </tr>

@@ -20,10 +20,16 @@ class Permission extends Model
         'approval_notes',
     ];
 
+    /**
+     * `start_date` is date-only input. It is cast with an explicit
+     * `date:Y-m-d` format so the value is serialized as a plain date
+     * string instead of being shifted to UTC by the application
+     * timezone (Asia/Jakarta).
+     */
     protected function casts(): array
     {
         return [
-            'start_date' => 'date',
+            'start_date' => 'date:Y-m-d',
         ];
     }
 

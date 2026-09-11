@@ -4,6 +4,7 @@ namespace Tests\Feature\Attendance;
 
 use App\Models\Attendance;
 use App\Models\Office;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -256,8 +257,8 @@ class AttendanceRecapExportTest extends TestCase
         $response = $this->actingAs($admin)->get(route('attendance.recap.export.excel'));
 
         $rows = $this->parseXlsx($response);
-        $this->assertSame(-6.1666667, (float) $rows[1][10]);
-        $this->assertSame(106.8, (float) $rows[1][11]);
+        $this->assertSame(-6.1666667, (float) $rows[1][11]);
+        $this->assertSame(106.8, (float) $rows[1][12]);
     }
 
     public function test_pdf_export_has_correct_filename(): void
@@ -311,7 +312,7 @@ class AttendanceRecapExportTest extends TestCase
 
         $rows = $this->parseXlsx($response);
         $this->assertSame('Hadir', $rows[1][8]);
-        $this->assertSame(0, (int) $rows[1][9]);
+        $this->assertSame(0, (int) $rows[1][10]);
     }
 
     public function test_excel_includes_late_minutes_column(): void
@@ -327,7 +328,7 @@ class AttendanceRecapExportTest extends TestCase
 
         $rows = $this->parseXlsx($response);
         $this->assertSame('Terlambat', $rows[1][8]);
-        $this->assertSame(14, (int) $rows[1][9]);
+        $this->assertSame(14, (int) $rows[1][10]);
     }
 
     public function test_excel_shows_zero_late_minutes_for_present(): void
@@ -343,7 +344,7 @@ class AttendanceRecapExportTest extends TestCase
 
         $rows = $this->parseXlsx($response);
         $this->assertSame('Hadir', $rows[1][8]);
-        $this->assertSame(0, (int) $rows[1][9]);
+        $this->assertSame(0, (int) $rows[1][10]);
     }
 
     public function test_excel_null_check_in_shows_empty_late_minutes(): void
@@ -359,7 +360,83 @@ class AttendanceRecapExportTest extends TestCase
 
         $rows = $this->parseXlsx($response);
         $this->assertSame('Hadir', $rows[1][8]);
-        $this->assertNull($rows[1][9]);
+        $this->assertNull($rows[1][10]);
+    }
+
+    public function test_excel_includes_the_approved_permission_reason(): void
+    {
+        $user = $this->createUser('user');
+        $this->createAttendance($user);
+        $this->createPermission($user, 'approved', 'Medical checkup');
+        $admin = $this->createUser('super_admin');
+
+        $response = $this->actingAs($admin)->get(route('attendance.recap.export.excel'));
+
+        $rows = $this->parseXlsx($response);
+        $this->assertSame('Medical checkup', $rows[1][9]);
+    }
+
+    public function test_excel_shows_dash_when_there_is_no_permission_reason(): void
+    {
+        $user = $this->createUser('user');
+        $this->createAttendance($user);
+        $admin = $this->createUser('super_admin');
+
+        $response = $this->actingAs($admin)->get(route('attendance.recap.export.excel'));
+
+        $rows = $this->parseXlsx($response);
+        $this->assertSame('-', $rows[1][9]);
+    }
+
+    public function test_pdf_renders_the_permission_reason_column(): void
+    {
+        $rows = collect([[
+            'nip' => '1234567890',
+            'name' => 'Budi Santoso',
+            'position' => 'Staff',
+            'office' => 'Jakarta Office',
+            'attendance_date' => '2026-08-05',
+            'check_in_time' => '07:55',
+            'check_out_time' => '17:00',
+            'status' => 'Hadir',
+            'permission_reason' => 'Medical checkup',
+            'late_minutes' => 0,
+        ]]);
+
+        $html = view('exports.attendance-recap', [
+            'rows' => $rows,
+            'period' => 'All time',
+            'generatedAt' => now()->format('Y-m-d H:i'),
+        ])->render();
+
+        $this->assertStringContainsString('Permission Reason', $html);
+        $this->assertStringContainsString('Medical checkup', $html);
+        $this->assertStringContainsString('Hadir', $html);
+    }
+
+    public function test_pdf_renders_dash_when_there_is_no_permission_reason(): void
+    {
+        $rows = collect([[
+            'nip' => '1234567890',
+            'name' => 'Budi Santoso',
+            'position' => 'Staff',
+            'office' => 'Jakarta Office',
+            'attendance_date' => '2026-08-05',
+            'check_in_time' => '07:55',
+            'check_out_time' => '17:00',
+            'status' => 'Hadir',
+            'permission_reason' => null,
+            'late_minutes' => 0,
+        ]]);
+
+        $html = view('exports.attendance-recap', [
+            'rows' => $rows,
+            'period' => 'All time',
+            'generatedAt' => now()->format('Y-m-d H:i'),
+        ])->render();
+
+        $this->assertStringContainsString('-', $html);
+        $this->assertStringNotContainsString('Medical checkup', $html);
     }
 
     private function createOffice(string $code, string $name): Office
@@ -396,6 +473,16 @@ class AttendanceRecapExportTest extends TestCase
             'check_in_time' => '07:55:00',
             'attendance_status' => 'present',
         ], ...$overrides]);
+    }
+
+    private function createPermission(User $user, string $status, ?string $reason = null): Permission
+    {
+        return Permission::query()->create([
+            'user_id' => $user->id,
+            'start_date' => '2026-08-05',
+            'reason' => $reason ?? 'Smoke permission',
+            'status' => $status,
+        ]);
     }
 
     /**

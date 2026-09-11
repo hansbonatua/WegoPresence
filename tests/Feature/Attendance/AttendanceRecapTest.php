@@ -4,6 +4,7 @@ namespace Tests\Feature\Attendance;
 
 use App\Models\Attendance;
 use App\Models\Office;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -312,6 +313,63 @@ class AttendanceRecapTest extends TestCase
             ->where('recaps.data.0.late_minutes', 0));
     }
 
+    public function test_recap_includes_the_approved_permission_reason(): void
+    {
+        $user = $this->createUser('user');
+        $this->createAttendance($user);
+        $this->createPermission($user, '2026-08-05', 'approved', 'Medical checkup');
+        $admin = $this->createUser('super_admin');
+
+        $response = $this->actingAs($admin)->get(route('attendance.recap'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('recaps.data.0.permission_reason', 'Medical checkup'));
+    }
+
+    public function test_pending_and_rejected_permissions_do_not_show_a_reason(): void
+    {
+        $admin = $this->createUser('super_admin');
+        $user = $this->createUser('user');
+        $this->createAttendance($user);
+        $this->createPermission($user, '2026-08-05', 'pending', 'Medical checkup');
+
+        $this->actingAs($admin)->get(route('attendance.recap'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('recaps.data.0.permission_reason', null));
+
+        $user2 = $this->createUser('user', ['nip' => '9999999999']);
+        $this->createAttendance($user2, ['attendance_date' => '2026-08-06']);
+        $this->createPermission($user2, '2026-08-06', 'rejected', 'Family matter');
+
+        $this->actingAs($admin)->get(route('attendance.recap'))
+            ->assertInertia(fn ($page) => $page
+                ->where('recaps.data', fn ($data) => collect($data)
+                    ->every(fn ($row) => $row['permission_reason'] === null)));
+    }
+
+    public function test_recap_reason_only_matches_the_same_user_and_date(): void
+    {
+        $userA = $this->createUser('user', ['nip' => '1111111111']);
+        $userB = $this->createUser('user', ['nip' => '2222222222']);
+        $this->createAttendance($userA, ['attendance_date' => '2026-08-05']);
+        $this->createAttendance($userB, ['attendance_date' => '2026-08-05']);
+        $this->createPermission($userA, '2026-08-05', 'approved', 'Medical checkup');
+        $admin = $this->createUser('super_admin');
+
+        $response = $this->actingAs($admin)->get(route('attendance.recap'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('recaps.data', fn ($data) => collect($data)
+                ->where('user.nip', '1111111111')
+                ->first()['permission_reason'] === 'Medical checkup')
+            ->where('recaps.data', fn ($data) => collect($data)
+                ->where('user.nip', '2222222222')
+                ->first()['permission_reason'] === null));
+    }
+
     public function test_check_in_at_08_40_shows_present_with_zero_late_minutes(): void
     {
         $user = $this->createUser('user');
@@ -471,5 +529,15 @@ class AttendanceRecapTest extends TestCase
             'check_in_time' => '07:55:00',
             'attendance_status' => 'present',
         ], ...$overrides]);
+    }
+
+    private function createPermission(User $user, string $date, string $status, ?string $reason = null): Permission
+    {
+        return Permission::query()->create([
+            'user_id' => $user->id,
+            'start_date' => $date,
+            'reason' => $reason ?? 'Smoke permission',
+            'status' => $status,
+        ]);
     }
 }

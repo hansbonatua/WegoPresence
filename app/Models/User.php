@@ -45,11 +45,14 @@ class User extends Authenticatable
 
     /**
      * Get the attributes that should be cast.
+     *
+     * `join_date` is intentionally not cast to a date: the column is
+     * date-only and the raw `Y-m-d` string must never be shifted by the
+     * application timezone (Asia/Jakarta) when serialized to JSON.
      */
     protected function casts(): array
     {
         return [
-            'join_date' => 'date',
             'password' => 'hashed',
         ];
     }

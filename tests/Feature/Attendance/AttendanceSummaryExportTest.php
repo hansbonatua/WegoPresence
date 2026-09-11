@@ -402,7 +402,7 @@ class AttendanceSummaryExportTest extends TestCase
         $this->assertSame('I', $this->loadSheet($response)->getCell('E7')->getValue());
     }
 
-    public function test_export_includes_the_permission_reason_column(): void
+    public function test_export_does_not_include_the_permission_reason_column(): void
     {
         [$start] = $this->mondayBasedWeek();
         $admin = $this->createManager('admin');
@@ -417,28 +417,8 @@ class AttendanceSummaryExportTest extends TestCase
         $sheet = $this->loadSheet($response);
 
         $this->assertSame('Office', $sheet->getCell('F6')->getValue());
-        $this->assertSame('Permission Reason', $sheet->getCell('G6')->getValue());
-        $this->assertSame('I', $sheet->getCell('E7')->getValue());
-        $this->assertSame($admin->office->office_name, $sheet->getCell('F7')->getValue());
-        $this->assertSame('Medical checkup', $sheet->getCell('G7')->getValue());
-    }
-
-    public function test_export_shows_dash_when_there_is_no_permission_reason(): void
-    {
-        [$start] = $this->mondayBasedWeek();
-        $admin = $this->createManager('admin');
-        $user = $this->createUser('user', ['office_id' => $admin->office_id]);
-
-        $response = $this->actingAs($admin)->get(route('attendance.summary.export', [
-            'start_date' => $start->toDateString(),
-            'end_date' => $start->toDateString(),
-        ]));
-
-        $sheet = $this->loadSheet($response);
-
-        $this->assertSame('Office', $sheet->getCell('F6')->getValue());
-        $this->assertSame('Permission Reason', $sheet->getCell('G6')->getValue());
-        $this->assertSame('-', $sheet->getCell('G7')->getValue());
+        $this->assertNull($sheet->getCell('G6')->getValue());
+        $this->assertNull($sheet->getCell('G7')->getValue());
     }
 
     public function test_approved_dinas_is_exported_as_d(): void

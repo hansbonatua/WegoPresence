@@ -33,6 +33,7 @@ export type AttendanceRecapResource = {
     check_out_time: string | null;
     attendance_status: AttendanceStatus;
     late_minutes: number | null;
+    permission_reason: string | null;
     latitude: string | null;
     longitude: string | null;
 };
@@ -50,7 +51,6 @@ export type AttendanceSummaryUser = {
     name: string;
     position: string;
     office: string;
-    permission_reason: string | null;
     dates: Record<string, AttendanceSummaryStatus>;
 };
 
