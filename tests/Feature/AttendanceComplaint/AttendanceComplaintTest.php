@@ -603,6 +603,7 @@ class AttendanceComplaintTest extends TestCase
             'attendance_date' => now()->subDays($this->attendanceCounter)->format('Y-m-d'),
             'check_in_time' => '07:50:00',
             'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
         ], ...$overrides]);
     }
 

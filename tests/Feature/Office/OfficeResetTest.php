@@ -81,6 +81,7 @@ class OfficeResetTest extends TestCase
             'attendance_status' => 'present',
             'check_in_time' => '08:05:00',
             'check_out_time' => '17:00:00',
+            'attendance_timezone' => 'Asia/Jakarta',
         ]);
 
         app(OfficeResetService::class)->reset();

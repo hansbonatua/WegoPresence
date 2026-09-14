@@ -542,6 +542,7 @@ class AttendanceSummaryExportTest extends TestCase
             'attendance_date' => $date->toDateString(),
             'check_in_time' => '08:00:00',
             'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
             ...$overrides,
         ]);
     }

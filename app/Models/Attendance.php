@@ -28,6 +28,7 @@ class Attendance extends Model
         'check_out_address',
 
         'attendance_status',
+        'attendance_timezone',
         'branch_area',
         'notes',
         'latitude',

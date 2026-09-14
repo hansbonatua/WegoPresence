@@ -134,6 +134,7 @@ class AttendanceTimezoneTest extends TestCase
                 'user_id' => $user->id,
                 'attendance_date' => '2026-08-'.str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
                 'attendance_status' => $status,
+                'attendance_timezone' => 'Asia/Jakarta',
             ]);
         }
 
@@ -153,6 +154,7 @@ class AttendanceTimezoneTest extends TestCase
             'attendance_date' => '2026-08-07',
             'check_in_time' => '08:00:00',
             'attendance_status' => 'late',
+            'attendance_timezone' => 'Asia/Jakarta',
         ]);
 
         Carbon::setTestNow('2026-08-07 17:10:00');

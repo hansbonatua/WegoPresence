@@ -19,8 +19,9 @@ use Illuminate\Support\Facades\Storage;
 class AttendanceService
 {
     /**
-     * Start attendance time (Asia/Jakarta). Check-in exactly at or before
-     * this time is PRESENT (Hadir), after it is LATE (Terlambat).
+     * Start attendance time in the record's local timezone (WIB/WITA/WIT,
+     * derived from the GPS location at check-in). Check-in exactly at or
+     * before this time is PRESENT (Hadir), after it is LATE (Terlambat).
      */
     private const START_ATTENDANCE_TIME = '08:46:00';
 
@@ -38,6 +39,7 @@ class AttendanceService
 
     public function __construct(
         private readonly GeocodingService $geocodingService,
+        private readonly GeoTimezoneService $geoTimezoneService,
     ) {}
 
     /**
@@ -74,8 +76,13 @@ class AttendanceService
             throw new AttendanceException('Your current location is outside your assigned working city.');
         }
 
-        $now = Carbon::now('Asia/Jakarta');
-        $status = $now->gt(Carbon::parse(self::START_ATTENDANCE_TIME, 'Asia/Jakarta'))
+        $timezone = $this->geoTimezoneService->resolve($latitude, $longitude);
+
+        // The transaction timezone comes from the GPS location: the wall
+        // clock, the attendance date and the late calculation all follow
+        // the timezone of the actual working location (WIB/WITA/WIT).
+        $now = Carbon::now($timezone);
+        $status = $now->gt(Carbon::parse(self::START_ATTENDANCE_TIME, $timezone))
             ? 'late'
             : 'present';
 
@@ -91,6 +98,7 @@ class AttendanceService
                 'attendance_date' => $now->format('Y-m-d'),
                 'check_in_time' => $now->format('H:i:s'),
                 'attendance_status' => $status,
+                'attendance_timezone' => $timezone,
                 'latitude' => $latitude,
                 'longitude' => $longitude,
                 'check_in_photo' => $photoPath,
@@ -124,10 +132,12 @@ class AttendanceService
 
         $photoPath = $photo->store('attendance/check-out', 'public');
 
+        $timezone = self::timezoneFor($attendance->attendance_timezone);
+
         try {
             $attendance->update([
                 'check_out_photo' => $photoPath,
-                'check_out_time' => now()->format('H:i:s'),
+                'check_out_time' => Carbon::now($timezone)->format('H:i:s'),
             ]);
         } catch (\Throwable $e) {
             Storage::disk('public')->delete($photoPath);
@@ -136,6 +146,16 @@ class AttendanceService
         }
 
         return $attendance->refresh();
+    }
+
+    /**
+     * Resolve the timezone to interpret an attendance transaction in,
+     * falling back to the application timezone when the record has no
+     * stored timezone (legacy data created before timezone awareness).
+     */
+    public static function timezoneFor(?string $attendanceTimezone): string
+    {
+        return filled($attendanceTimezone) ? $attendanceTimezone : config('app.timezone');
     }
 
     /**

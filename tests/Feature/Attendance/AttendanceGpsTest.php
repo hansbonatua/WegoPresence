@@ -190,6 +190,7 @@ class AttendanceGpsTest extends TestCase
             'attendance_date' => '2026-08-07',
             'check_in_time' => '07:00:00',
             'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
         ]);
 
         $this->fakeNominatim('Jakarta Pusat');
@@ -241,6 +242,7 @@ class AttendanceGpsTest extends TestCase
             'attendance_date' => '2026-08-07',
             'check_in_time' => '07:50:00',
             'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
         ]);
 
         $response = $this->actingAs($user)
@@ -418,6 +420,7 @@ class AttendanceGpsTest extends TestCase
             'attendance_date' => $saturday,
             'check_in_time' => '09:00:00',
             'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
         ]);
 
         $this->travelTo(Carbon::parse($saturday)->setTime(17, 0));
@@ -441,6 +444,7 @@ class AttendanceGpsTest extends TestCase
             'attendance_date' => $sunday,
             'check_in_time' => '09:00:00',
             'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
         ]);
 
         $this->travelTo(Carbon::parse($sunday)->setTime(17, 0));

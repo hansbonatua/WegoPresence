@@ -64,6 +64,7 @@ class AttendancePhotoTest extends TestCase
             'attendance_date' => '2026-08-07',
             'check_in_time' => '07:50:00',
             'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
         ]);
 
         $response = $this->actingAs($user)
@@ -103,6 +104,7 @@ class AttendancePhotoTest extends TestCase
             'attendance_date' => '2026-08-07',
             'check_in_time' => '07:50:00',
             'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
         ]);
 
         $response = $this->actingAs($user)
@@ -172,6 +174,7 @@ class AttendancePhotoTest extends TestCase
             'attendance_date' => '2026-08-07',
             'check_in_time' => '07:50:00',
             'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
         ]);
 
         $response = $this->actingAs($user)
@@ -194,6 +197,7 @@ class AttendancePhotoTest extends TestCase
             'attendance_date' => '2026-08-07',
             'check_in_time' => '07:00:00',
             'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
         ]);
 
         $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
@@ -216,6 +220,7 @@ class AttendancePhotoTest extends TestCase
             'check_in_time' => '07:50:00',
             'check_out_time' => '16:00:00',
             'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
         ]);
 
         $response = $this->actingAs($user)

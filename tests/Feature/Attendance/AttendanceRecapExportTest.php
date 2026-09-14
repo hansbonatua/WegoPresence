@@ -472,6 +472,7 @@ class AttendanceRecapExportTest extends TestCase
             'attendance_date' => '2026-08-05',
             'check_in_time' => '07:55:00',
             'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
         ], ...$overrides]);
     }
 
