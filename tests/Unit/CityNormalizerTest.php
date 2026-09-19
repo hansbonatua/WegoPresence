@@ -57,6 +57,14 @@ class CityNormalizerTest extends TestCase
         $this->assertNotSame('dki jakarta', CityNormalizer::normalize('Bandar Lampung'));
     }
 
+    public function test_maros_administrative_variants_normalize_to_maros(): void
+    {
+        $this->assertSame('maros', CityNormalizer::normalize('Maros'));
+        $this->assertSame('maros', CityNormalizer::normalize('Kabupaten Maros'));
+        $this->assertSame('maros', CityNormalizer::normalize('Kab Maros'));
+        $this->assertSame('maros', CityNormalizer::normalize('Maros Regency'));
+    }
+
     public function test_distinct_cities_never_match(): void
     {
         $this->assertNotSame(

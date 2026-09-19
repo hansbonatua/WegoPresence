@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
-class AttendanceWorkingAreaExceptionTest extends TestCase
+class AttendanceCityNormalizationTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -37,26 +37,10 @@ class AttendanceWorkingAreaExceptionTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_makassar_user_check_in_from_makassar_succeeds(): void
+    public function test_maros_user_check_in_from_kabupaten_maros_succeeds(): void
     {
-        $user = $this->createUser($this->createOffice('Makassar'), 'Makassar');
-        $this->fakeNominatim('Makassar');
-
-        $response = $this->postCheckIn([
-            'latitude' => -5.1477,
-            'longitude' => 119.4327,
-        ], $user);
-
-        $response->assertSessionHas('success');
-        $this->assertDatabaseHas('attendances', [
-            'user_id' => $user->id,
-        ]);
-    }
-
-    public function test_makassar_user_check_in_from_maros_succeeds(): void
-    {
-        $user = $this->createUser($this->createOffice('Makassar'), 'Makassar');
-        $this->fakeNominatim('Maros');
+        $user = $this->createUser($this->createOffice('Maros'), 'Maros');
+        $this->fakeNominatim('Kabupaten Maros');
 
         $response = $this->postCheckIn([
             'latitude' => -5.0109,
@@ -69,9 +53,9 @@ class AttendanceWorkingAreaExceptionTest extends TestCase
         ]);
     }
 
-    public function test_makassar_user_check_in_from_another_city_is_rejected(): void
+    public function test_maros_user_check_in_from_another_city_is_rejected(): void
     {
-        $user = $this->createUser($this->createOffice('Makassar'), 'Makassar');
+        $user = $this->createUser($this->createOffice('Maros'), 'Maros');
         $this->fakeNominatim('Surabaya');
 
         $response = $this->postCheckIn([
@@ -85,6 +69,22 @@ class AttendanceWorkingAreaExceptionTest extends TestCase
         ]);
     }
 
+    public function test_manado_user_with_makassar_office_checks_in_from_manado(): void
+    {
+        $user = $this->createUser($this->createOffice('Makassar'), 'Manado');
+        $this->fakeNominatim('Manado');
+
+        $response = $this->postCheckIn([
+            'latitude' => 1.4748,
+            'longitude' => 124.8421,
+        ], $user);
+
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $user->id,
+        ]);
+    }
+
     private static int $officeSequence = 0;
 
     private static int $userSequence = 0;
@@ -94,7 +94,7 @@ class AttendanceWorkingAreaExceptionTest extends TestCase
         self::$officeSequence++;
 
         return Office::query()->create([
-            'office_code' => 'WA'.str_pad((string) self::$officeSequence, 3, '0', STR_PAD_LEFT),
+            'office_code' => 'CN'.str_pad((string) self::$officeSequence, 3, '0', STR_PAD_LEFT),
             'office_name' => $city.' Office',
             'city' => $city,
             'address' => $city,
@@ -113,10 +113,10 @@ class AttendanceWorkingAreaExceptionTest extends TestCase
         return User::query()->create([
             'role_id' => $role->id,
             'office_id' => $office->id,
-            'nip' => '99330'.(self::$userSequence % 10),
-            'name' => 'Working Area User '.self::$userSequence,
+            'nip' => '99440'.(self::$userSequence % 10),
+            'name' => 'City Normalization User '.self::$userSequence,
             'position' => 'Staff',
-            'email' => 'wa.test'.self::$userSequence.'@example.com',
+            'email' => 'cn.test'.self::$userSequence.'@example.com',
             'join_date' => '2026-01-01',
             'city' => $city,
             'status' => 'active',
@@ -128,8 +128,8 @@ class AttendanceWorkingAreaExceptionTest extends TestCase
     {
         Http::fake([
             'nominatim.openstreetmap.org/*' => Http::response([
-                'lat' => '-5.1477',
-                'lon' => '119.4327',
+                'lat' => '-5.0109',
+                'lon' => '119.5764',
                 'address' => [
                     'city' => $city,
                     'county' => $city,
@@ -145,8 +145,8 @@ class AttendanceWorkingAreaExceptionTest extends TestCase
         return $this->actingAs($user)
             ->withoutMiddleware(EnsureEmailIsVerified::class)
             ->post('/attendance/check-in', array_merge([
-                'latitude' => -5.1477,
-                'longitude' => 119.4327,
+                'latitude' => -5.0109,
+                'longitude' => 119.5764,
                 'position_timestamp' => now()->getTimestampMs(),
                 'photo' => UploadedFile::fake()->image('photo.jpg'),
             ], $payload));

@@ -5,9 +5,8 @@ namespace App\Services;
 final class CityNormalizer
 {
     /**
-     * Aliases of the DKI Jakarta special capital region, each mapping to
-     * the canonical "DKI Jakarta". Keys are lower-cased, whitespace- and
-     * punctuation-normalized values.
+     * Aliases mapping administrative variations to their canonical city.
+     * Keys are lower-cased, whitespace- and punctuation-normalized values.
      *
      * @var array<string, string>
      */
@@ -28,6 +27,9 @@ final class CityNormalizer
         'dki jakarta' => 'dki jakarta',
         'daerah khusus ibukota jakarta' => 'dki jakarta',
         'special capital region of jakarta' => 'dki jakarta',
+        'kabupaten maros' => 'maros',
+        'kab maros' => 'maros',
+        'maros regency' => 'maros',
     ];
 
     /**
@@ -40,6 +42,9 @@ final class CityNormalizer
      *  - "Central Jakarta"          -> "dki jakarta"
      *  - "Bandar Lampung"           -> "bandar lampung"
      *  - "Bekasi"                   -> "bekasi" (never equals "dki jakarta")
+     *  - "Kabupaten Maros"          -> "maros"
+     *  - "Kab Maros"                -> "maros"
+     *  - "Maros Regency"            -> "maros"
      */
     public static function normalize(string $city): string
     {

@@ -37,16 +37,6 @@ class AttendanceService
      */
     private const POSITION_MAX_AGE_MS = 30_000;
 
-    /**
-     * Working-area exceptions, keyed by normalized working city with a
-     * list of additionally accepted normalized GPS cities.
-     *
-     * @var array<string, array<int, string>>
-     */
-    private const WORKING_AREA_EXCEPTIONS = [
-        'makassar' => ['maros'],
-    ];
-
     public function __construct(
         private readonly GeocodingService $geocodingService,
         private readonly GeoTimezoneService $geoTimezoneService,
@@ -406,8 +396,7 @@ class AttendanceService
     }
 
     /**
-     * Verify that the GPS coordinates resolve to the user's working city
-     * or to one of its working-area exceptions.
+     * Verify that the GPS coordinates resolve to the user's working city.
      */
     private function matchesCity(float $latitude, float $longitude, string $city): bool
     {
@@ -415,13 +404,8 @@ class AttendanceService
 
         $normalizedCity = CityNormalizer::normalize($city);
 
-        $acceptedCities = array_merge(
-            [$normalizedCity],
-            self::WORKING_AREA_EXCEPTIONS[$normalizedCity] ?? [],
-        );
-
         foreach ($gpsCity['candidates'] as $candidate) {
-            if (in_array(CityNormalizer::normalize($candidate), $acceptedCities, true)) {
+            if (CityNormalizer::normalize($candidate) === $normalizedCity) {
                 return true;
             }
         }
