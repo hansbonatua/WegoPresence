@@ -107,7 +107,7 @@ class AttendanceGpsTest extends TestCase
         }
     }
 
-    public function test_check_in_is_rejected_from_areas_outside_dki_jakarta(): void
+    public function test_check_in_is_allowed_from_areas_outside_the_user_city(): void
     {
         foreach ([
             'Bekasi',
@@ -122,9 +122,9 @@ class AttendanceGpsTest extends TestCase
             $response = $this->postCheckIn([], $user);
 
             $response->assertRedirect();
-            $response->assertSessionHas('error', 'Your current location is outside your assigned working city.');
+            $response->assertSessionHas('success');
 
-            $this->assertDatabaseMissing('attendances', ['user_id' => $user->id]);
+            $this->assertDatabaseHas('attendances', ['user_id' => $user->id]);
         }
     }
 
@@ -140,45 +140,45 @@ class AttendanceGpsTest extends TestCase
         $this->assertDatabaseCount('attendances', 1);
     }
 
-    public function test_check_in_is_rejected_when_gps_city_differs_from_user_city_even_if_office_city_matches(): void
+    public function test_check_in_is_allowed_when_gps_city_differs_from_user_city_even_if_office_city_matches(): void
     {
-        $this->createUser($this->createOffice('DKI Jakarta'), 'Balikpapan');
-
         foreach (['Banjarmasin', 'Kota Administrasi Jakarta Pusat'] as $area) {
+            $user = $this->createUser($this->createOffice('DKI Jakarta'), 'Balikpapan');
             $this->fakeNominatim($area);
 
-            $response = $this->postCheckIn();
+            $response = $this->postCheckIn([], $user);
 
             $response->assertRedirect();
-            $response->assertSessionHas('error', 'Your current location is outside your assigned working city.');
-            $this->assertDatabaseCount('attendances', 0);
+            $response->assertSessionHas('success');
+
+            $this->assertDatabaseHas('attendances', ['user_id' => $user->id]);
         }
     }
 
-    public function test_check_in_is_rejected_when_reverse_geocoding_fails(): void
+    public function test_check_in_succeeds_even_when_reverse_geocoding_fails(): void
     {
-        $this->createUser($this->createOffice('DKI Jakarta'));
+        $user = $this->createUser($this->createOffice('DKI Jakarta'));
         Http::fake([
             'nominatim.openstreetmap.org/*' => Http::response('Server Error', 500),
         ]);
 
-        $response = $this->postCheckIn();
+        $response = $this->postCheckIn([], $user);
 
         $response->assertRedirect();
-        $response->assertSessionHas('error', 'Unable to verify your location. Please make sure GPS is enabled and try again.');
-        $this->assertDatabaseCount('attendances', 0);
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', ['user_id' => $user->id]);
     }
 
-    public function test_check_in_is_rejected_when_user_city_is_not_configured(): void
+    public function test_check_in_succeeds_when_user_city_is_not_configured(): void
     {
-        $this->createUser($this->createOffice('DKI Jakarta'), '');
+        $user = $this->createUser($this->createOffice('DKI Jakarta'), '');
         $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
 
-        $response = $this->postCheckIn();
+        $response = $this->postCheckIn([], $user);
 
         $response->assertRedirect();
-        $response->assertSessionHas('error', 'Your working city is not configured.');
-        $this->assertDatabaseCount('attendances', 0);
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', ['user_id' => $user->id]);
     }
 
     public function test_check_in_is_rejected_when_user_already_checked_in_today(): void

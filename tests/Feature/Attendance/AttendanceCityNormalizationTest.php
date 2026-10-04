@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Attendance;
 
+use App\Models\Attendance;
 use App\Models\Office;
 use App\Models\Role;
 use App\Models\User;
@@ -37,6 +38,118 @@ class AttendanceCityNormalizationTest extends TestCase
         parent::tearDown();
     }
 
+    public function test_bandung_user_check_in_from_bandung_succeeds(): void
+    {
+        $user = $this->createUser($this->createOffice('Bandung'), 'Bandung');
+        $this->fakeNominatim('Bandung');
+
+        $response = $this->postCheckIn([
+            'latitude' => -6.9175,
+            'longitude' => 107.6191,
+        ], $user);
+
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $user->id,
+            'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
+        ]);
+
+        $attendance = Attendance::query()->where('user_id', $user->id)->firstOrFail();
+
+        $this->assertSame('-6.9175000', (string) $attendance->latitude);
+        $this->assertSame('107.6191000', (string) $attendance->longitude);
+    }
+
+    public function test_bandung_user_check_in_from_jakarta_succeeds(): void
+    {
+        $user = $this->createUser($this->createOffice('Bandung'), 'Bandung');
+        $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
+
+        $response = $this->postCheckIn([
+            'latitude' => -6.1666667,
+            'longitude' => 106.8,
+        ], $user);
+
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $user->id,
+            'attendance_status' => 'present',
+            'attendance_timezone' => 'Asia/Jakarta',
+        ]);
+    }
+
+    public function test_bandung_user_check_in_from_makassar_succeeds(): void
+    {
+        $user = $this->createUser($this->createOffice('Bandung'), 'Bandung');
+        $this->fakeNominatim('Makassar');
+
+        $response = $this->postCheckIn([
+            'latitude' => -5.1477,
+            'longitude' => 119.4327,
+        ], $user);
+
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $user->id,
+            'attendance_status' => 'late',
+            'attendance_timezone' => 'Asia/Makassar',
+        ]);
+    }
+
+    public function test_bandung_user_check_in_from_jayapura_succeeds(): void
+    {
+        $user = $this->createUser($this->createOffice('Bandung'), 'Bandung');
+        $this->fakeNominatim('Jayapura');
+
+        $response = $this->postCheckIn([
+            'latitude' => -2.5367,
+            'longitude' => 140.7173,
+        ], $user);
+
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $user->id,
+            'attendance_status' => 'late',
+            'attendance_timezone' => 'Asia/Jayapura',
+        ]);
+    }
+
+    public function test_check_in_succeeds_when_office_differs_from_gps_location(): void
+    {
+        $user = $this->createUser($this->createOffice('Makassar'), 'Bandung');
+        $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
+
+        $response = $this->postCheckIn([
+            'latitude' => -6.1666667,
+            'longitude' => 106.8,
+        ], $user);
+
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function test_check_in_succeeds_even_when_geocoding_is_unavailable(): void
+    {
+        $user = $this->createUser($this->createOffice('Bandung'), 'Bandung');
+        Http::fake([
+            'nominatim.openstreetmap.org/*' => Http::response('Server Error', 500),
+        ]);
+
+        $response = $this->postCheckIn([
+            'latitude' => -6.1666667,
+            'longitude' => 106.8,
+        ], $user);
+
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $user->id,
+            'attendance_timezone' => 'Asia/Jakarta',
+        ]);
+    }
+
     public function test_maros_user_check_in_from_kabupaten_maros_succeeds(): void
     {
         $user = $this->createUser($this->createOffice('Maros'), 'Maros');
@@ -49,22 +162,6 @@ class AttendanceCityNormalizationTest extends TestCase
 
         $response->assertSessionHas('success');
         $this->assertDatabaseHas('attendances', [
-            'user_id' => $user->id,
-        ]);
-    }
-
-    public function test_maros_user_check_in_from_another_city_is_rejected(): void
-    {
-        $user = $this->createUser($this->createOffice('Maros'), 'Maros');
-        $this->fakeNominatim('Surabaya');
-
-        $response = $this->postCheckIn([
-            'latitude' => -7.2575,
-            'longitude' => 112.7521,
-        ], $user);
-
-        $response->assertSessionHas('error', 'Your current location is outside your assigned working city.');
-        $this->assertDatabaseMissing('attendances', [
             'user_id' => $user->id,
         ]);
     }

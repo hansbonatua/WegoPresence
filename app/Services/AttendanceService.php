@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Exceptions\AttendanceException;
-use App\Exceptions\GeocodingException;
 use App\Models\Attendance;
 use App\Models\Permission;
 use App\Models\User;
@@ -38,7 +37,6 @@ class AttendanceService
     private const POSITION_MAX_AGE_MS = 30_000;
 
     public function __construct(
-        private readonly GeocodingService $geocodingService,
         private readonly GeoTimezoneService $geoTimezoneService,
     ) {}
 
@@ -47,11 +45,8 @@ class AttendanceService
      *
      * @param  array{latitude: float|string, longitude: float|string, position_timestamp?: int, photo?: UploadedFile}  $data
      *
-     * @throws AttendanceException When the user has already checked in today,
-     *                             the position data is stale, the working
-     *                             city is not configured, the GPS location
-     *                             cannot be verified, or the city does not
-     *                             match the user's working city.
+     * @throws AttendanceException When the user has already checked in today
+     *                             or the position data is stale.
      */
     public function checkIn(User $user, array $data): Attendance
     {
@@ -61,20 +56,12 @@ class AttendanceService
 
         $this->assertPositionFresh((int) ($data['position_timestamp'] ?? 0));
 
-        // Check-in location is the user's working city, not the office.
-        // The office stays as an administrative/organizational attribute.
-        $city = $user->city;
-
-        if (blank($city)) {
-            throw new AttendanceException('Your working city is not configured.');
-        }
-
+        // GPS coordinates are recorded as attendance evidence and used to
+        // resolve the transaction timezone. They never restrict where a
+        // user may check in from: neither users.city nor the office limits
+        // the check-in location.
         $latitude = (float) $data['latitude'];
         $longitude = (float) $data['longitude'];
-
-        if (! $this->matchesCity($latitude, $longitude, $city)) {
-            throw new AttendanceException('Your current location is outside your assigned working city.');
-        }
 
         $timezone = $this->geoTimezoneService->resolve($latitude, $longitude);
 
@@ -392,41 +379,6 @@ class AttendanceService
 
         if ($age < -self::POSITION_MAX_AGE_MS) {
             throw new AttendanceException('Your location data is stale. Please refresh your location and try again.');
-        }
-    }
-
-    /**
-     * Verify that the GPS coordinates resolve to the user's working city.
-     */
-    private function matchesCity(float $latitude, float $longitude, string $city): bool
-    {
-        $gpsCity = $this->resolveGpsCity($latitude, $longitude);
-
-        $normalizedCity = CityNormalizer::normalize($city);
-
-        foreach ($gpsCity['candidates'] as $candidate) {
-            if (CityNormalizer::normalize($candidate) === $normalizedCity) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Resolve the city for a coordinate pair, translating geocoding
-     * failures into a user-friendly attendance error.
-     *
-     * @return array{city: string, candidates: array<int, string>}
-     *
-     * @throws AttendanceException
-     */
-    private function resolveGpsCity(float $latitude, float $longitude): array
-    {
-        try {
-            return $this->geocodingService->reverse($latitude, $longitude);
-        } catch (GeocodingException) {
-            throw new AttendanceException('Unable to verify your location. Please make sure GPS is enabled and try again.');
         }
     }
 

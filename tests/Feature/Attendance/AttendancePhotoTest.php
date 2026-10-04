@@ -250,30 +250,30 @@ class AttendancePhotoTest extends TestCase
         $this->assertEmpty(Storage::disk('public')->files('attendance/check-in'));
     }
 
-    public function test_city_mismatch_is_still_rejected_with_a_valid_photo(): void
+    public function test_city_mismatch_is_allowed_with_a_valid_photo(): void
     {
-        $this->createUser($this->createOffice('Jakarta Pusat'));
+        $user = $this->createUser($this->createOffice('Jakarta Pusat'));
         $this->fakeNominatim('Bandar Lampung');
 
-        $response = $this->postCheckIn();
+        $response = $this->postCheckIn([], $user);
 
         $response->assertRedirect();
-        $response->assertSessionHas('error', 'Your current location is outside your assigned working city.');
-        $this->assertDatabaseCount('attendances', 0);
-        $this->assertEmpty(Storage::disk('public')->files('attendance/check-in'));
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', ['user_id' => $user->id]);
+        $this->assertNotEmpty(Storage::disk('public')->files('attendance/check-in'));
     }
 
-    public function test_missing_user_city_is_still_rejected_with_a_valid_photo(): void
+    public function test_missing_user_city_is_allowed_with_a_valid_photo(): void
     {
-        $this->createUser($this->createOffice('Jakarta Pusat'), '');
+        $user = $this->createUser($this->createOffice('Jakarta Pusat'), '');
         $this->fakeNominatim('Kota Administrasi Jakarta Pusat');
 
-        $response = $this->postCheckIn();
+        $response = $this->postCheckIn([], $user);
 
         $response->assertRedirect();
-        $response->assertSessionHas('error', 'Your working city is not configured.');
-        $this->assertDatabaseCount('attendances', 0);
-        $this->assertEmpty(Storage::disk('public')->files('attendance/check-in'));
+        $response->assertSessionHas('success');
+        $this->assertDatabaseHas('attendances', ['user_id' => $user->id]);
+        $this->assertNotEmpty(Storage::disk('public')->files('attendance/check-in'));
     }
 
     private function createOffice(string $city, string $startTime = '08:00:00', string $officeCode = 'JKT010'): Office
