@@ -105,17 +105,18 @@ class AttendanceService
     }
 
     /**
-     * Record the check-out for a user for today.
+     * Record the check-out for the given attendance record.
      *
-     * @throws AttendanceException When the user has not checked in yet or
-     *                             has already checked out today.
+     * The record is resolved and authorized by the caller so the check-out
+     * does not repeat the "current attendance" lookup.
+     *
+     * @throws AttendanceException When the record belongs to another user or
+     *                             has already been checked out.
      */
-    public function checkOut(User $user, UploadedFile $photo): Attendance
+    public function checkOut(User $user, Attendance $attendance, UploadedFile $photo): Attendance
     {
-        $attendance = $this->todayFor($user);
-
-        if ($attendance === null) {
-            throw new AttendanceException('You have not checked in today.');
+        if ($attendance->user_id !== $user->id) {
+            throw new AttendanceException('You can only check out your own attendance.');
         }
 
         if ($attendance->check_out_time !== null) {
@@ -212,14 +213,6 @@ class AttendanceService
             ->orderByDesc('check_in_time')
             ->value('attendance_timezone')
             ?? config('app.timezone');
-    }
-
-    /**
-     * Check whether the user already has an attendance record today.
-     */
-    public function hasAttendance(User $user): bool
-    {
-        return $this->todayFor($user) !== null;
     }
 
     /**

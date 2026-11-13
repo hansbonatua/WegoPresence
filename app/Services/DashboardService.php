@@ -10,6 +10,7 @@ use App\Models\Office;
 use App\Models\Permission;
 use App\Models\SickLeave;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 class DashboardService
@@ -59,6 +60,41 @@ class DashboardService
      */
     private function cards(User $user): array
     {
+        // "Today" differs per attendance timezone (WIB/WITA/WIT), while
+        // attendance_date stores the local date of the transaction. The set
+        // of local dates that can mean "now" holds at most two calendar
+        // days, so the aggregation stays small and driver-agnostic.
+        $localDates = collect(['Asia/Jakarta', 'Asia/Makassar', 'Asia/Jayapura'])
+            ->map(fn (string $timezone): string => Carbon::now($timezone)->toDateString())
+            ->unique()
+            ->sort()
+            ->values();
+
+        $groups = Attendance::query()
+            ->whereDate('attendance_date', '>=', $localDates->first())
+            ->whereDate('attendance_date', '<=', $localDates->last())
+            ->selectRaw('attendance_date, attendance_timezone, attendance_status, count(*) as total')
+            ->groupBy('attendance_date', 'attendance_timezone', 'attendance_status')
+            ->get();
+
+        $attendanceToday = 0;
+        $lateToday = 0;
+
+        /** @var Attendance $group */
+        foreach ($groups as $group) {
+            $recordDate = Carbon::parse((string) $group->getAttribute('attendance_date'))->format('Y-m-d');
+            $timezone = AttendanceService::timezoneFor((string) $group->getAttribute('attendance_timezone'));
+
+            if ($recordDate !== Carbon::now($timezone)->toDateString()) {
+                continue;
+            }
+
+            $total = (int) $group->getAttribute('total');
+
+            $attendanceToday += $total;
+            $lateToday += (string) $group->getAttribute('attendance_status') === 'late' ? $total : 0;
+        }
+
         $cards = [
             [
                 'id' => 'total_employees',
@@ -75,17 +111,12 @@ class DashboardService
             [
                 'id' => 'attendance_today',
                 'label' => 'Attendance Today',
-                'value' => Attendance::query()
-                    ->whereDate('attendance_date', today())
-                    ->count(),
+                'value' => $attendanceToday,
             ],
             [
                 'id' => 'late_today',
                 'label' => 'Late Today',
-                'value' => Attendance::query()
-                    ->whereDate('attendance_date', today())
-                    ->where('attendance_status', 'late')
-                    ->count(),
+                'value' => $lateToday,
             ],
             [
                 'id' => 'leave_today',
@@ -170,11 +201,33 @@ class DashboardService
         $lastSevenDays = collect(range(6, 0))
             ->map(fn (int $daysAgo): string => today()->subDays($daysAgo)->format('Y-m-d'));
 
+        // Attendance dates follow the transaction timezone, so the window has
+        // to reach one day past the application timezone's today. Rows dated
+        // beyond that label are folded into the last bucket below.
+        $windowEnd = today()->addDay()->format('Y-m-d');
+
         $counts = Attendance::query()
-            ->whereBetween('attendance_date', [$lastSevenDays->last(), $lastSevenDays->first()])
+            ->whereDate('attendance_date', '>=', $lastSevenDays->first())
+            ->whereDate('attendance_date', '<=', $windowEnd)
             ->selectRaw('attendance_date, count(*) as total')
             ->groupBy('attendance_date')
-            ->pluck('total', 'attendance_date');
+            ->pluck('total', 'attendance_date')
+            ->mapWithKeys(fn ($total, $date): array => [
+                Carbon::parse((string) $date)->format('Y-m-d') => (int) $total,
+            ]);
+
+        $todayLabel = $lastSevenDays->last();
+
+        $trend = $lastSevenDays
+            ->map(fn (string $date): int => (int) ($counts[$date] ?? 0))
+            ->values()
+            ->all();
+
+        foreach ($counts as $date => $total) {
+            if ($date > $todayLabel) {
+                $trend[count($trend) - 1] += (int) $total;
+            }
+        }
 
         return [
             'attendance_trend' => [
@@ -182,10 +235,7 @@ class DashboardService
                 'datasets' => [
                     [
                         'label' => 'Attendances',
-                        'data' => $lastSevenDays
-                            ->map(fn (string $date): int => (int) ($counts[$date] ?? 0))
-                            ->values()
-                            ->all(),
+                        'data' => $trend,
                     ],
                 ],
             ],
@@ -341,10 +391,9 @@ class DashboardService
      */
     private function todayAttendance(User $user): array
     {
-        $attendance = Attendance::query()
-            ->where('user_id', $user->id)
-            ->whereDate('attendance_date', today())
-            ->first();
+        // Reuse the attendance service so WITA/WIT records stay visible
+        // after midnight in the application timezone.
+        $attendance = app(AttendanceService::class)->todayFor($user);
 
         return [
             'check_in_time' => $attendance?->check_in_time?->format('H:i'),

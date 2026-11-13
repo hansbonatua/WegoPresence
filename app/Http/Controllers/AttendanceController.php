@@ -127,6 +127,7 @@ class AttendanceController extends Controller
         try {
             $this->attendanceService->checkOut(
                 $request->user(),
+                $attendance,
                 $request->validated('photo'),
             );
         } catch (AttendanceException $e) {
