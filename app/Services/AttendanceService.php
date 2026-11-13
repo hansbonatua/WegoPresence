@@ -50,10 +50,6 @@ class AttendanceService
      */
     public function checkIn(User $user, array $data): Attendance
     {
-        if ($this->todayFor($user) !== null) {
-            throw new AttendanceException('You have already checked in today.');
-        }
-
         $this->assertPositionFresh((int) ($data['position_timestamp'] ?? 0));
 
         // GPS coordinates are recorded as attendance evidence and used to
@@ -63,12 +59,21 @@ class AttendanceService
         $latitude = (float) $data['latitude'];
         $longitude = (float) $data['longitude'];
 
-        $timezone = $this->geoTimezoneService->resolve($latitude, $longitude);
-
         // The transaction timezone comes from the GPS location: the wall
         // clock, the attendance date and the late calculation all follow
         // the timezone of the actual working location (WIB/WITA/WIT).
+        $timezone = $this->geoTimezoneService->resolve($latitude, $longitude);
         $now = Carbon::now($timezone);
+        $localDate = $now->format('Y-m-d');
+
+        // The duplicate guard must compare against the local date of the
+        // attendance transaction, not the application timezone's "today":
+        // around midnight in WITA/WIT the Jakarta date is still yesterday,
+        // which would let a second check-in slip through this guard.
+        if ($user->attendances()->whereDate('attendance_date', $localDate)->exists()) {
+            throw new AttendanceException('You have already checked in today.');
+        }
+
         $status = $now->gt(Carbon::parse(self::START_ATTENDANCE_TIME, $timezone))
             ? 'late'
             : 'present';
@@ -82,7 +87,7 @@ class AttendanceService
         try {
             return Attendance::query()->create([
                 'user_id' => $user->id,
-                'attendance_date' => $now->format('Y-m-d'),
+                'attendance_date' => $localDate,
                 'check_in_time' => $now->format('H:i:s'),
                 'attendance_status' => $status,
                 'attendance_timezone' => $timezone,
