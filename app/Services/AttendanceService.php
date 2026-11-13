@@ -151,14 +151,67 @@ class AttendanceService
     }
 
     /**
-     * Find today's attendance record for a user, if any.
+     * Find the attendance record that currently applies to a user, if any.
+     *
+     * Two stages are required because the attendance date follows the
+     * timezone of the GPS location (WIB/WITA/WIT), not the application
+     * timezone:
+     *
+     * 1. An open session (no check-out yet) inside a ±1 day window is
+     *    returned first. This keeps a shift that started before midnight
+     *    WIB checkable after midnight local time (e.g. a WIT record from
+     *    23:30 checked out at 01:00 the next WIT day), while still
+     *    refusing a check-out for a stale session older than one day.
+     * 2. When every session is closed, the record of "today" according to
+     *    the timezone of the user's latest record is returned, so the
+     *    attendance page shows the correct row after midnight in WITA/WIT.
      */
     public function todayFor(User $user): ?Attendance
     {
-        return Attendance::query()
-            ->where('user_id', $user->id)
-            ->whereDate('attendance_date', today())
+        // 1. Sesi kerja yang sedang berjalan (open record dalam jendela
+        //    ±1 hari). Jendela ±1 hari mencegah check-out record basi
+        //    (>1 hari) — sesuai perilaku lama yang menolak check-out
+        //    record sangat tua.
+        /** @var Attendance|null $open */
+        $open = $user->attendances()
+            ->whereNull('check_out_time')
+            ->whereDate('attendance_date', '>=', today()->subDay())
+            ->whereDate('attendance_date', '<=', today()->addDay())
+            ->orderByDesc('attendance_date')
+            ->orderByDesc('check_in_time')
             ->first();
+
+        if ($open !== null) {
+            return $open;
+        }
+
+        // 2. Semua sesi sudah ditutup — tampilkan record "hari ini" menurut
+        //    timezone record terakhir user (untuk display di controller index).
+        $timezone = $this->attendanceTimezoneFor($user);
+
+        /** @var Attendance|null $today */
+        $today = $user->attendances()
+            ->whereDate('attendance_date', Carbon::now($timezone)->toDateString())
+            ->first();
+
+        return $today;
+    }
+
+    /**
+     * The timezone of the user's latest attendance record.
+     *
+     * Using the record's own timezone keeps WITA/WIT records findable
+     * after midnight in the application timezone, where today() would
+     * still report yesterday's Jakarta date. Users without any history
+     * fall back to the application timezone.
+     */
+    private function attendanceTimezoneFor(User $user): string
+    {
+        return $user->attendances()
+            ->orderByDesc('attendance_date')
+            ->orderByDesc('check_in_time')
+            ->value('attendance_timezone')
+            ?? config('app.timezone');
     }
 
     /**
